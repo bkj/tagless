@@ -8,6 +8,7 @@
 
 import os
 import sys
+import json
 import argparse
 import numpy as np
 import pandas as pd
@@ -18,7 +19,7 @@ from flask import Flask, Response, request, abort, \
 
 from simple_las import SimpleLAS
 
-app = Flask(__name__, template_folder='templates', static_folder='static')
+app = Flask(__name__)
 
 # --
 # Args
