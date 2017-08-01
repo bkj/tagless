@@ -8,7 +8,7 @@ function next_image(e, label) {
     data: JSON.stringify({'image_path' : e.target.src, 'label' : label}),
     success: function(responses, status) {
       var urls = $('img').map(function(e, x) {return x.src.split('/').pop()});
-      _.map(function(response) {
+      _.map(responses, function(response) {
         if(!_.contains(urls, response.src.split('/').pop())) {
           $('#images').append(
             `<a class="image" style="width: ${response.width}px; height: ${response.height}px">` + 
