@@ -7,37 +7,33 @@ function next_image(e, label) {
     dataType: 'json',
     data: JSON.stringify({'image_path' : e.target.src, 'label' : label}),
     success: function(responses, status) {
-      var urls = $('img').map(function(e, x) {return x.src.split('/').pop()});
-      _.map(responses, function(response) {
-        if(!_.contains(urls, response.src.split('/').pop())) {
-          $('#images').append(
-            `<a class="image" style="width: ${response.width}px; height: ${response.height}px">` + 
-              `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
-            `</a>`
-          )
-          $(".image").unbind('click').unbind('contextmenu')
-          $(".image").click(function(e) { 
-            $(this).css('background-color', 'green').children().css('opacity', '0.5');
-            next_image(e, true) 
-          }).contextmenu(function(e) { 
-            $(this).css('background-color', 'red').children().css('opacity', '0.5');
-            next_image(e, false) 
-          });
+        console.log('got response')
+        _.map(responses, function(response) {
+            $('#images').append(
+                `<a class="image" style="width: ${response.width}px; height: ${response.height}px">` + 
+                    `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
+                `</a>`
+            )
+        });
+        while($('img').length > 150) {
+            $('img')[0].remove();
         }
-      });
-      $('img').unveil(); 
+        // $('img').unveil(); 
     }
   });
 }
 
 $(document).ready(function() {
     $('img').unveil();
-      $(".image").click(function(e) { 
+    $("body").on("click", ".image", function(e){
         $(this).css('background-color', 'green').children().css('opacity', '0.5');
+        console.log('click: true')
         next_image(e, true) 
-      }).contextmenu(function(e) { 
+    });
+    $("body").on("contextmenu", ".image", function(e){
         $(this).css('background-color', 'red').children().css('opacity', '0.5');
+        console.log('click: false')
         next_image(e, false) 
-      });
+    });
 });
 

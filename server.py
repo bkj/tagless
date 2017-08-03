@@ -51,8 +51,11 @@ def init_las(feats, labs):
     
     # np.save('./feats', feats)
     # np.save('./labs', labs)
-    init_labels = {0:0} # !! Say that first image is negative -- avoid initialization
-    simp = SimpleLAS(feats, init_labels=init_labels, pi=0.05, eta=0.5, alpha=1e-6, n=10)
+    seed = 'm9ElylZw3L8.jpg'
+    idx = np.where(labs == seed)[0][0]
+    init_labels = {idx:1} # !! Say that first image is negative -- avoid initialization
+    print init_labels
+    simp = SimpleLAS(feats, init_labels=init_labels, pi=0.05, eta=0.5, alpha=1e-6, n=3)
     return simp
 
 
@@ -79,6 +82,7 @@ def load_image(filename, default_width=300, default_height=300):
 @app.route('/label', methods=['POST'])
 def test():
     global simp
+    global sent
     req = request.get_json()
     
     print json.dumps(req)
@@ -94,8 +98,10 @@ def test():
         idxs = simp.next_message
         out = []
         for idx in idxs:
-            next_filename = labs[idx]
-            out.append(load_image(os.path.join(args.img_dir, next_filename)))
+            if idx not in sent:
+                out.append(load_image(os.path.join(args.img_dir, labs[idx])))
+                sent.add(idx)
+                print len(sent)
         
         return jsonify(out)
     else:
@@ -114,15 +120,24 @@ def get_file(filename):
 
 @app.route('/')
 def index():
-    return render_template('index.html', **{
-        'images': [load_image(f) for f in glob(os.path.join(args.img_dir, '*jpg'))[1:13]]
-    })
+    global simp
+    global sent
+    
+    idxs = simp.next_message
+    images = []
+    for idx in idxs:
+        if idx not in sent:
+            images.append(load_image(os.path.join(args.img_dir, labs[idx])))
+            sent.add(idx)
+    
+    return render_template('index.html', **{'images': images})
 
 
 if __name__ == "__main__":
+    sent = set([])
     feats = np.load('./.feats.npy')
     labs = np.load('./.labs.npy')
     simp = init_las(feats.T, labs)
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', use_reloader=False)
 
 
