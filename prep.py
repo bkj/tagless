@@ -6,6 +6,7 @@
 
 import os
 import sys
+import numpy as np
 import pandas as pd
 
 if __name__ == "__main__":
@@ -22,6 +23,6 @@ if __name__ == "__main__":
     labs = np.array(df[0])
     labs = np.array(map(os.path.basename, labs))
     
-    np.save(os.path.join(inpath, '.feats'), feats)
-    np.save(os.path.join(inpath, '.labs'), labs)
+    np.save('%s.feats' % inpath, feats)
+    np.save('%s.labs' % inpath, labs)
     print >> sys.stderr, 'written to %s' % os.path.join(inpath, '.{feats,labs}')

@@ -26,7 +26,8 @@ app = Flask(__name__)
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--feats', type=str, default='./crow-feats')
+    parser.add_argument('--crow', type=str, default='./.crow')
+    parser.add_argument('--seeds', type=str, default='./.crow-seeds')
     parser.add_argument('--img-dir', type=str, default='./imgs')
     return parser.parse_args()
 
@@ -35,26 +36,29 @@ args = parse_args()
 # --
 # Helpers
 
-def init_las(feats, labs):
-    print >> sys.stderr, 'server.py: init_las'
-    # if not os.path.exists('.')
-    # print >> sys.stderr, 'load feats: start'
-    # df = pd.read_csv('./crow-feats', sep='\t', header=None)
-    # print >> sys.stderr, 'load feats: done'
+def init_las(crow, seeds=None):
     
-    # feats = np.array(df[range(1, df.shape[1])])
-    # feats /= np.sqrt((feats ** 2).sum(axis=1, keepdims=True))
-    # feats = feats.T
+    global labs
     
-    # labs = np.array(df[0])
-    # labs = np.array(map(os.path.basename, labs))
+    if seeds:
+        feats = np.vstack([
+            np.load('%s.feats.npy' % seeds),
+            np.load('%s.feats.npy' % crow),
+        ])
+        
+        seed_labs = np.load('%s.labs.npy' % seeds)
+        labs = np.hstack([
+            seed_labs, 
+            np.load('%s.labs.npy' % crow)
+        ])
+        
+        init_labels = {i:1 for i in range(seed_labs.shape[0])}
+    else:
+        feats = np.load('%s.feats.npy' % crow)
+        labs = np.load('%s.labs.npy' % crow)
+        rand_idx = np.random.choice(len(labs))
+        init_labels = {rand_idx:0}
     
-    # np.save('./feats', feats)
-    # np.save('./labs', labs)
-    seed = 'm9ElylZw3L8.jpg'
-    idx = np.where(labs == seed)[0][0]
-    init_labels = {idx:1} # !! Say that first image is negative -- avoid initialization
-    print init_labels
     simp = SimpleLAS(feats, init_labels=init_labels, pi=0.05, eta=0.5, alpha=1e-6, n=3)
     return simp
 
@@ -135,9 +139,6 @@ def index():
 
 if __name__ == "__main__":
     sent = set([])
-    feats = np.load('./.feats.npy')
-    labs = np.load('./.labs.npy')
-    simp = init_las(feats.T, labs)
+    labs = None
+    simp = init_las(args.feats, args.seeds)
     app.run(debug=True, host='0.0.0.0', use_reloader=False)
-
-
