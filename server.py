@@ -28,10 +28,8 @@ app = Flask(__name__)
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--sampler', type=str, default='simple_las')
-    
     parser.add_argument('--crow', type=str, default='./.crow')
-    parser.add_argument('--seeds', type=str, default='./.crow-seeds')
-    parser.add_argument('--no-seeds', action='store_true')
+    parser.add_argument('--seeds', type=str, default='')
     parser.add_argument('--img-dir', type=str, default='./')
     
     return parser.parse_args()
@@ -93,30 +91,31 @@ class TaglessServer:
     def label(self):
         req = request.get_json()
         
-        print json.dumps(req)
-        sys.stdout.flush()
-        
         # Record annotation (if not already annotated)
         filename = '/'.join(req['image_path'].split('/')[3:]) # Everything after the domain
         idx = np.where(self.sampler.labs == filename)[0][0]
+        out = []
         if idx in self.sampler.unlabeled_idxs:
             self.sampler.setLabel(idx, req['label'])
             
             # Next image for annotation
             idxs = self.sampler.next_message
-            out = []
             for idx in idxs:
                 if idx not in self.sent:
                     out.append(load_image(self.sampler.labs[idx]))
                     self.sent.add(idx)
-                    print len(self.sent)
-            
-            return jsonify(out)
-        else:
-            return jsonify([])
+        
+        req.update({
+            'n_hits' : sum(self.sampler.hits),
+            'n_labeled' : len(self.sampler.labeled_idxs),
+        })
+        print json.dumps(req)
+        sys.stdout.flush()
+        
+        return jsonify(out)
 
 
 if __name__ == "__main__":
-    sampler = MySampler(args.crow, None if args.no_seeds else args.seeds)
+    sampler = MySampler(args.crow, args.seeds if args.seeds else None)
     server = TaglessServer(sampler)
     server.app.run(debug=True, host='0.0.0.0', use_reloader=False)
