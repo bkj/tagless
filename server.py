@@ -9,6 +9,7 @@
 import os
 import sys
 import json
+import atexit
 import argparse
 import numpy as np
 import pandas as pd
@@ -28,7 +29,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--crow', type=str, default='./.crow')
     parser.add_argument('--seeds', type=str, default='./.crow-seeds')
-    parser.add_argument('--img-dir', type=str, default='./imgs')
+    parser.add_argument('--no-seeds', action='store_true')
+    parser.add_argument('--img-dir', type=str, default='./')
+    
+    parser.add_argument('--alpha', type=float, default=1e-6)
+    
     return parser.parse_args()
 
 args = parse_args()
@@ -41,6 +46,7 @@ def init_las(crow, seeds=None):
     global labs
     
     if seeds:
+        print >> sys.stderr, 'init_las: seeds'
         feats = np.vstack([
             np.load('%s.feats.npy' % seeds),
             np.load('%s.feats.npy' % crow),
@@ -54,12 +60,19 @@ def init_las(crow, seeds=None):
         
         init_labels = {i:1 for i in range(seed_labs.shape[0])}
     else:
+        print >> sys.stderr, 'init_las: no seeds'
         feats = np.load('%s.feats.npy' % crow)
         labs = np.load('%s.labs.npy' % crow)
         rand_idx = np.random.choice(len(labs))
         init_labels = {rand_idx:0}
     
-    simp = SimpleLAS(feats, init_labels=init_labels, pi=0.05, eta=0.5, alpha=1e-6, n=3)
+    print >> sys.stderr, 'init_las: initializing SimpleLAS'
+    simp = SimpleLAS(feats, init_labels=init_labels, pi=0.05, eta=0.5, alpha=args.alpha, n=10, verbose=True)
+    
+    def save():
+        simp.save('./simple_las')
+    
+    atexit.register(save)
     return simp
 
 
@@ -93,7 +106,7 @@ def test():
     sys.stdout.flush()
     
     # Record annotation (if not already annotated)
-    filename = os.path.basename(req['image_path'])
+    filename = '/'.join(req['image_path'].split('/')[3:]) # Everything after the domain
     idx = np.where(labs == filename)[0][0]
     if idx in simp.unlabeled_idxs:
         simp.setLabel(idx, req['label'])
@@ -103,7 +116,8 @@ def test():
         out = []
         for idx in idxs:
             if idx not in sent:
-                out.append(load_image(os.path.join(args.img_dir, labs[idx])))
+                # out.append(load_image(os.path.join(args.img_dir, labs[idx])))
+                out.append(load_image(labs[idx]))
                 sent.add(idx)
                 print len(sent)
         
@@ -114,12 +128,13 @@ def test():
 
 @app.route('/imgs/<path:filename>')
 def get_image(filename):
-    return send_from_directory(args.img_dir, filename)
+    return send_from_directory('./imgs', filename)
 
 
-@app.route('/<path:filename>')
-def get_file(filename):
-    return send_from_directory('.', filename)
+# @app.route('/<path:filename>')
+# def get_file(filename):
+#     print 'get_file'
+#     return send_from_directory('.', filename)
 
 
 @app.route('/')
@@ -140,5 +155,6 @@ def index():
 if __name__ == "__main__":
     sent = set([])
     labs = None
-    simp = init_las(args.feats, args.seeds)
+    simp = init_las(args.crow, None if args.no_seeds else args.seeds)
+    print >> sys.stderr, 'server.py: ready'
     app.run(debug=True, host='0.0.0.0', use_reloader=False)
