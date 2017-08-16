@@ -65,7 +65,7 @@ def load_image(filename, default_width=300, default_height=300):
 
 class TaglessServer:
     
-    def __init__(self, sampler, outpath='./simple_las'):
+    def __init__(self, sampler, outpath='./results/tagless'):
         self.app = Flask(__name__)
         
         self.app.add_url_rule('/', 'view_1', self.index)
@@ -91,7 +91,6 @@ class TaglessServer:
         return render_template('index.html', **{'images': images})
     
     def label(self):
-        """ Get label from front-end """
         req = request.get_json()
         
         print json.dumps(req)
