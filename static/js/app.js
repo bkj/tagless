@@ -7,7 +7,6 @@ function next_image(e, label) {
     dataType: 'json',
     data: JSON.stringify({'image_path' : e.target.src, 'label' : label}),
     success: function(responses, status) {
-        console.log('got response')
         _.map(responses, function(response) {
             $('#images').append(
                 `<a class="image" style="width: ${response.width}px; height: ${response.height}px">` + 
