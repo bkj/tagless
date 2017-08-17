@@ -70,6 +70,7 @@ class TaglessServer:
         self.sampler = sampler
         self.sent = set([])
         self.n_las = n_las
+        self.outpath = outpath
         
         def save():
             self.sampler.save(outpath)
@@ -77,7 +78,7 @@ class TaglessServer:
         atexit.register(save)
         
     def index(self):
-        idxs = self.sampler.next_messages()
+        idxs = self.sampler.get_next()
         images = []
         for idx in idxs:
             if idx not in self.sent:
@@ -97,7 +98,7 @@ class TaglessServer:
             self.sampler.set_label(idx, req['label'])
             
             # Next image for annotation
-            idxs = self.sampler.next_messages()
+            idxs = self.sampler.get_next()
             for idx in idxs:
                 if idx not in self.sent:
                     out.append(load_image(self.sampler.labs[idx]))
@@ -106,6 +107,7 @@ class TaglessServer:
         req.update({
             'n_hits' : self.sampler.n_hits(),
             'n_labeled' : self.sampler.n_labeled(),
+            'mode' : self.mode,
         })
         print json.dumps(req)
         sys.stdout.flush()
@@ -118,6 +120,10 @@ class TaglessServer:
     
     def _switch_sampler(self):
         """ switch from LAS to uncertainty sampling """
+        
+        # Save LAS sampler
+        self.sampler.save(self.outpath)
+        
         print >> sys.stderr, 'TaglessServer: switch_sampler'
         X, y = self.sampler.get_data()
         self.sampler = UncertaintySampler(X, y, self.sampler.labs)

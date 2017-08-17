@@ -5,18 +5,17 @@
 """
 
 import sys
-import libact
+import h5py
+from datetime import datetime
 import numpy as np
 
 from libact.base.dataset import Dataset
 from libact.models import SVM
 from libact.query_strategies import UncertaintySampling
 
-from sklearn.svm import LinearSVC
-
 class UncertaintySampler(object):
     
-    def __init__(self, X, y, labs):
+    def __init__(self, X, y, labs, n=10):
         
         y = [yy if yy >= 0 else None for yy in y]
         
@@ -24,16 +23,18 @@ class UncertaintySampler(object):
         self.labs = labs
         
         self.uc = UncertaintySampling(self.dataset, method='lc', model=SVM(kernel='linear'))
-        print 'uc ok'
+        self.n = n
     
-    def next_messages(self):
-        return np.array([self.uc.make_query()])
+    def get_next(self):
+        return self.uc.make_query(n=self.n)
     
     def set_label(self, idx, label):
         self.dataset.update(idx, label)
     
     def get_data(self):
-        return zip(*self.dataset.get_entries())
+        X, y = zip(*self.dataset.get_entries())
+        X, y = np.vstack(X), np.array([yy if yy is not None else -1 for yy in y])
+        return X, y
     
     def n_hits(self):
         labels = np.array(zip(*self.dataset.get_entries())[1])
@@ -44,3 +45,13 @@ class UncertaintySampler(object):
     
     def is_labeled(self, idx):
         return idx in np.where(zip(*self.dataset.get_entries())[1])[0]
+    
+    def save(self, outpath):
+        """ !! This should be updated to save in same format as simple_las """
+        X, y = self.get_data()
+    
+        f = h5py.File('%s-%s-%s.h5' % (outpath, 'uncertainty', datetime.now().strftime('%Y%m%d_%H%M%S')))
+        f['X'] = X
+        f['y'] = y
+        f.close()
+

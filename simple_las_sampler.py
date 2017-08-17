@@ -42,7 +42,7 @@ class SimpleLASSampler(SimpleLAS):
             verbose=verbose
         )
     
-    def next_messages(self):
+    def get_next(self):
         return self.next_message
     
     def set_label(self, idx, lab):
@@ -60,3 +60,4 @@ class SimpleLASSampler(SimpleLAS):
     def is_labeled(self, idx):
         print idx
         return idx in self.labeled_idxs
+
