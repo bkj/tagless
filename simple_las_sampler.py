@@ -41,3 +41,22 @@ class SimpleLASSampler(SimpleLAS):
             n=n,
             verbose=verbose
         )
+    
+    def next_messages(self):
+        return self.next_message
+    
+    def set_label(self, idx, lab):
+        self.setLabel(idx, lab)
+    
+    def get_data(self):
+        return self.X.T, self.labels
+    
+    def n_hits(self):
+        return sum(self.hits)
+    
+    def n_labeled(self):
+        return len(self.labeled_idxs)
+    
+    def is_labeled(self, idx):
+        print idx
+        return idx in self.labeled_idxs

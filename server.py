@@ -19,8 +19,7 @@ from flask import Flask, Response, request, abort, \
     render_template, send_from_directory, jsonify
 
 from simple_las_sampler import SimpleLASSampler
-
-app = Flask(__name__)
+from uncertainty_sampler import UncertaintySampler
 
 # --
 # Args
@@ -33,10 +32,6 @@ def parse_args():
     parser.add_argument('--img-dir', type=str, default='./')
     
     return parser.parse_args()
-
-args = parse_args()
-if args.sampler == 'simple_las':
-    MySampler = SimpleLASSampler
 
 # --
 # Helpers
@@ -63,15 +58,18 @@ def load_image(filename, default_width=300, default_height=300):
 
 class TaglessServer:
     
-    def __init__(self, sampler, outpath='./results/tagless', n_las=10):
+    def __init__(self, args, outpath='./results/tagless', n_las=1):
         self.app = Flask(__name__)
         
         self.app.add_url_rule('/', 'view_1', self.index)
         self.app.add_url_rule('/<path:x>', 'view_2', lambda x: send_from_directory('.', x))
         self.app.add_url_rule('/label', 'view_3', self.label, methods=['POST'])
         
+        sampler = SimpleLASSampler(args.crow, args.seeds if args.seeds else None)
+        self.mode = 'las'
         self.sampler = sampler
         self.sent = set([])
+        self.n_las = n_las
         
         def save():
             self.sampler.save(outpath)
@@ -79,7 +77,7 @@ class TaglessServer:
         atexit.register(save)
         
     def index(self):
-        idxs = self.sampler.next_message
+        idxs = self.sampler.next_messages()
         images = []
         for idx in idxs:
             if idx not in self.sent:
@@ -95,34 +93,37 @@ class TaglessServer:
         filename = '/'.join(req['image_path'].split('/')[3:]) # Everything after the domain
         idx = np.where(self.sampler.labs == filename)[0][0]
         out = []
-        if idx in self.sampler.unlabeled_idxs:
-            self.sampler.setLabel(idx, req['label'])
+        if not self.sampler.is_labeled(idx):
+            self.sampler.set_label(idx, req['label'])
             
             # Next image for annotation
-            idxs = self.sampler.next_message
+            idxs = self.sampler.next_messages()
             for idx in idxs:
                 if idx not in self.sent:
                     out.append(load_image(self.sampler.labs[idx]))
                     self.sent.add(idx)
         
         req.update({
-            'n_hits' : sum(self.sampler.hits),
-            'n_labeled' : len(self.sampler.labeled_idxs),
+            'n_hits' : self.sampler.n_hits(),
+            'n_labeled' : self.sampler.n_labeled(),
         })
         print json.dumps(req)
         sys.stdout.flush()
         
-        if req['n_hits'] > self.n_las:
-            self._switch_sampler()
+        if (req['n_hits'] > self.n_las) and (self.mode == 'las'):
+            if req['n_labeled'] > req['n_hits']:
+                self._switch_sampler()
         
         return jsonify(out)
     
     def _switch_sampler(self):
+        """ switch from LAS to uncertainty sampling """
         print >> sys.stderr, 'TaglessServer: switch_sampler'
-        # ... switch from LAS to uncertainty sampling ...
-
+        X, y = self.sampler.get_data()
+        self.sampler = UncertaintySampler(X, y, self.sampler.labs)
+        self.mode = 'uncertainty'
 
 if __name__ == "__main__":
-    sampler = MySampler(args.crow, args.seeds if args.seeds else None)
-    server = TaglessServer(sampler)
+    args = parse_args()
+    server = TaglessServer(args)
     server.app.run(debug=True, host='0.0.0.0', use_reloader=False)
