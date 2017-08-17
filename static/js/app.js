@@ -1,3 +1,11 @@
+
+/*
+    app.js
+*/
+
+
+MAX_IMAGES = 150
+
 function next_image(e, label) {  
   $.ajax({
     type: 'POST',
@@ -14,7 +22,9 @@ function next_image(e, label) {
                 `</a>`
             )
         });
-        while($('img').length > 150) {
+        
+        // Don't show more than MAX_IMAGES at a time (too many images seemed to choke the app)
+        while($('img').length > ) {
             $('img')[0].remove();
         }
         // $('img').unveil(); 
@@ -26,12 +36,10 @@ $(document).ready(function() {
     $('img').unveil();
     $("body").on("click", ".image", function(e){
         $(this).css('background-color', 'green').children().css('opacity', '0.5');
-        console.log('click: true')
         next_image(e, true) 
     });
     $("body").on("contextmenu", ".image", function(e){
         $(this).css('background-color', 'red').children().css('opacity', '0.5');
-        console.log('click: false')
         next_image(e, false) 
     });
 });
