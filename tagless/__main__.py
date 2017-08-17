@@ -7,6 +7,7 @@
 """
 
 import os
+import re
 import sys
 import json
 import atexit
@@ -16,7 +17,7 @@ import pandas as pd
 from glob import glob
 from PIL import Image
 from flask import Flask, Response, request, abort, \
-    render_template, send_from_directory, jsonify
+    render_template, send_from_directory, jsonify, send_file
 
 from simple_las_sampler import SimpleLASSampler
 from uncertainty_sampler import UncertaintySampler
@@ -30,7 +31,7 @@ def parse_args():
     parser.add_argument('--sampler', type=str, default='simple_las')
     parser.add_argument('--crow', type=str, default='./.crow')
     parser.add_argument('--seeds', type=str, default='')
-    parser.add_argument('--img-dir', type=str, default='./')
+    parser.add_argument('--img-dir', type=str, default=os.getcwd())
     
     return parser.parse_args()
 
@@ -59,19 +60,21 @@ def load_image(filename, default_width=300, default_height=300):
 
 class TaglessServer:
     
-    def __init__(self, args, n_las=1):
+    def __init__(self, args):
         self.app = Flask(__name__)
         
+        self.mode = 'las'
+        sampler = SimpleLASSampler(args.crow, args.seeds if args.seeds else None)
+        sampler.labs = np.array([os.path.join(args.img_dir, l) for l in sampler.labs])
+        self.sampler = sampler
+        
         self.app.add_url_rule('/', 'view_1', self.index)
-        self.app.add_url_rule('/<path:x>', 'view_2', lambda x: send_from_directory('.', x))
+        self.app.add_url_rule('/<path:x>', 'view_2', lambda x: send_file('/' + x))
         self.app.add_url_rule('/label', 'view_3', self.label, methods=['POST'])
         
-        sampler = SimpleLASSampler(args.crow, args.seeds if args.seeds else None)
-        self.mode = 'las'
-        self.sampler = sampler
-        self.sent = set([])
-        self.n_las = n_las
+        self.n_las = args.n_las
         self.outpath = args.outpath
+        self.sent = set([])
         
         def save():
             self.sampler.save(self.outpath)
@@ -83,7 +86,7 @@ class TaglessServer:
         images = []
         for idx in idxs:
             if idx not in self.sent:
-                images.append(load_image(os.path.join(args.img_dir, self.sampler.labs[idx])))
+                images.append(load_image(self.sampler.labs[idx]))
                 self.sent.add(idx)
         
         return render_template('index.html', **{'images': images})
@@ -91,8 +94,10 @@ class TaglessServer:
     def label(self):
         req = request.get_json()
         
+        # Everything after the domain (as absolute path)
+        filename = '/' + '/'.join(req['image_path'].split('/')[3:]) 
+        
         # Record annotation (if not already annotated)
-        filename = '/'.join(req['image_path'].split('/')[3:]) # Everything after the domain
         idx = np.where(self.sampler.labs == filename)[0][0]
         out = []
         if not self.sampler.is_labeled(idx):

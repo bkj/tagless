@@ -1,6 +1,5 @@
-imgs
-data/*
-results/*
+build/*
+tests/*
+dist/*
+tagless.egg-info/*
 *pyc
-imgs/*
-.crow*
