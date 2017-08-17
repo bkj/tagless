@@ -10,19 +10,19 @@ from datetime import datetime
 import numpy as np
 
 from libact.base.dataset import Dataset
-from libact.models import SVM
+from libact.models import LinearSVC
 from libact.query_strategies import UncertaintySampling
 
 class UncertaintySampler(object):
     
-    def __init__(self, X, y, labs, n=10):
+    def __init__(self, X, y, labs, n=2):
         
         y = [yy if yy >= 0 else None for yy in y]
         
         self.dataset = Dataset(X, y)
         self.labs = labs
         
-        self.uc = UncertaintySampling(self.dataset, method='lc', model=SVM(kernel='linear'))
+        self.uc = UncertaintySampling(self.dataset, method='lc', model=LinearSVC())
         self.n = n
     
     def get_next(self):
@@ -53,5 +53,6 @@ class UncertaintySampler(object):
         f = h5py.File('%s-%s-%s.h5' % (outpath, 'uncertainty', datetime.now().strftime('%Y%m%d_%H%M%S')))
         f['X'] = X
         f['y'] = y
+        f['labs'] = self.labs
         f.close()
 

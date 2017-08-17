@@ -26,6 +26,7 @@ from uncertainty_sampler import UncertaintySampler
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--outpath', type=str, required=True)
     parser.add_argument('--sampler', type=str, default='simple_las')
     parser.add_argument('--crow', type=str, default='./.crow')
     parser.add_argument('--seeds', type=str, default='')
@@ -58,7 +59,7 @@ def load_image(filename, default_width=300, default_height=300):
 
 class TaglessServer:
     
-    def __init__(self, args, outpath='./results/tagless', n_las=1):
+    def __init__(self, args, n_las=1):
         self.app = Flask(__name__)
         
         self.app.add_url_rule('/', 'view_1', self.index)
@@ -70,10 +71,10 @@ class TaglessServer:
         self.sampler = sampler
         self.sent = set([])
         self.n_las = n_las
-        self.outpath = outpath
+        self.outpath = args.outpath
         
         def save():
-            self.sampler.save(outpath)
+            self.sampler.save(self.outpath)
         
         atexit.register(save)
         
