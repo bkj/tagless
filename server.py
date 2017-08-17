@@ -63,7 +63,7 @@ def load_image(filename, default_width=300, default_height=300):
 
 class TaglessServer:
     
-    def __init__(self, sampler, outpath='./results/tagless'):
+    def __init__(self, sampler, outpath='./results/tagless', n_las=10):
         self.app = Flask(__name__)
         
         self.app.add_url_rule('/', 'view_1', self.index)
@@ -112,7 +112,14 @@ class TaglessServer:
         print json.dumps(req)
         sys.stdout.flush()
         
+        if req['n_hits'] > self.n_las:
+            self._switch_sampler()
+        
         return jsonify(out)
+    
+    def _switch_sampler(self):
+        print >> sys.stderr, 'TaglessServer: switch_sampler'
+        # ... switch from LAS to uncertainty sampling ...
 
 
 if __name__ == "__main__":

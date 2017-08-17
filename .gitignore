@@ -1,2 +1,6 @@
+imgs
+data/*
+results/*
+*pyc
 imgs/*
 .crow*
