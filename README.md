@@ -1,4 +1,4 @@
-## taglas
+## tagless
 
 Tagging interface w/ transfer learning, linearized active search and uncertainty sampling:
 
