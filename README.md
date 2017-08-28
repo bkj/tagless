@@ -1,16 +1,12 @@
 ## taglas
 
-Tagging interface w/ transfer learning, linearized active search and uncertainty sampling
+Tagging interface w/ transfer learning, linearized active search and uncertainty sampling:
 
-Transfer learning:
-    https://github.com/bkj/tdesc
-
-Linearized active search (LAS):
-    https://github.com/bkj/simple_las
-
-Uncertainty sampling:
-    https://github.com/bkj/libact
-
+|                   |                              | 
+| ----------------- | ---------------------------- |
+| Transfer learning | https://github.com/bkj/tdesc |
+| Linearized active search (LAS) |  https://github.com/bkj/simple_las | 
+| Uncertainty sampling | https://github.com/bkj/libact | 
 
 ### Usage
 
