@@ -8,6 +8,8 @@ Tagging interface w/ transfer learning, linearized active search and uncertainty
 | Linearized active search (LAS) |  https://github.com/bkj/simple_las | 
 | Uncertainty sampling | https://github.com/bkj/libact | 
 
+Under active development -- some things are broken or don't have sensible APIs exposed.
+
 ### Usage
 
 ```
