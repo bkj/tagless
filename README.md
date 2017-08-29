@@ -1,6 +1,14 @@
-## taglas
+## tagless
 
-Tagging interface w/ linearized active search (github.com/bkj/simple_las) and uncertainty samplign
+Tagging interface w/ transfer learning, linearized active search and uncertainty sampling:
+
+|                   |                              | 
+| ----------------- | ---------------------------- |
+| Transfer learning | https://github.com/bkj/tdesc |
+| Linearized active search (LAS) |  https://github.com/bkj/simple_las | 
+| Uncertainty sampling | https://github.com/bkj/libact | 
+
+Under active development -- some things are broken or don't have sensible APIs exposed.
 
 ### Usage
 
@@ -15,9 +23,9 @@ Tagging interface w/ linearized active search (github.com/bkj/simple_las) and un
     python $TAGLESS_ROOT/utils/prep.py --inpath ../data/crow-feats ./data/crow
     
     # Run server
-    python -m tagless --outpath ./results/run-v0 --crow ./data/crow
+    python -m tagless --outpath ./results/my-labels --crow ./data/crow
     
-    # Connect to localhost:5000
+    # Connect to localhost:5000 + start tagging
 ```
 
 ### Notes
