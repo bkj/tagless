@@ -6,6 +6,7 @@
 
 import os
 import sys
+import h5py
 import argparse
 import numpy as np
 import pandas as pd
@@ -33,8 +34,11 @@ if __name__ == "__main__":
     
     print >> sys.stderr, 'prepping labs'
     labs = np.array(df[0])
-    # labs = np.array(map(os.path.basename, labs))
     
-    np.save('%s.feats' % args.outpath, feats)
-    np.save('%s.labs' % args.outpath, labs)
-    print >> sys.stderr, 'written to %s' % os.path.join(args.outpath, '.{feats,labs}')
+    print >> sys.stderr, 'saving'
+    outfile = h5py.File(args.outpath)
+    outfile['feats'] = feats
+    outfile['labs'] = labs
+    outfile.close()
+    
+    print >> sys.stderr, 'written to %s' % args.outpath

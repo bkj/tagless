@@ -26,10 +26,16 @@ class UncertaintySampler(object):
         self.n = n
     
     def get_next(self):
-        return self.uc.make_query(n=self.n)
+        print >> sys.stderr, 'get_next: start'
+        out = self.uc.make_query(n=self.n)
+        print >> sys.stderr, 'get_next: done'
+        return out
     
     def set_label(self, idx, label):
-        self.dataset.update(idx, label)
+        print >> sys.stderr, 'set_label: start'
+        out = self.dataset.update(idx, label)
+        print >> sys.stderr, 'set_label: done'
+        return out
     
     def get_data(self):
         X, y = zip(*self.dataset.get_entries())

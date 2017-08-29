@@ -29,9 +29,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--outpath', type=str, required=True)
     parser.add_argument('--sampler', type=str, default='simple_las')
-    parser.add_argument('--crow', type=str, default='./.crow')
+    parser.add_argument('--crow', type=str, default='./data/crow')
     parser.add_argument('--seeds', type=str, default='')
     parser.add_argument('--img-dir', type=str, default=os.getcwd())
+    parser.add_argument('--n-las', type=int, default=5)
     
     return parser.parse_args()
 
@@ -130,10 +131,11 @@ class TaglessServer:
         # Save LAS sampler
         self.sampler.save(self.outpath)
         
-        print >> sys.stderr, 'TaglessServer: switch_sampler'
+        print >> sys.stderr, 'TaglessServer: las -> uncertainty | start'
         X, y = self.sampler.get_data()
         self.sampler = UncertaintySampler(X, y, self.sampler.labs)
         self.mode = 'uncertainty'
+        print >> sys.stderr, 'TaglessServer: las -> uncertainty | done'
 
 if __name__ == "__main__":
     args = parse_args()
