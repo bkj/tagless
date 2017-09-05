@@ -19,8 +19,8 @@ Under active development -- some things are broken or don't have sensible APIs e
     # expect set of images to be in `imgs` directory
     
     # Featurize images
-    find ./imgs/ -type f | python -m tdesc --model vgg16 --crow > ./data/crow
-    python $TAGLESS_ROOT/tagless/prep.py --inpath ../data/crow-feats ./data/crow
+    find ./imgs/ -type f | python -m tdesc --model vgg16 --crow > .crow
+    python $TAGLESS_ROOT/tagless/prep.py --inpath .crow ./data/crow
     
     # Run server
     python -m tagless --outpath ./results/my-labels --crow ./data/crow
