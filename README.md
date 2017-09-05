@@ -36,4 +36,4 @@ __Idea__: Feature vectors are normalized relus -- so norm=1 and all positive ent
 
 ### Dependencies
 
-This has been tested on Ubuntu 16.04 w/ Python 2.7
+This has been tested on Ubuntu 16.04 w/ Python 2.7 (via Anaconda)
