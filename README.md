@@ -20,7 +20,7 @@ Under active development -- some things are broken or don't have sensible APIs e
     
     # Featurize images
     find ./imgs/ -type f | python -m tdesc --model vgg16 --crow > ./data/crow
-    python $TAGLESS_ROOT/utils/prep.py --inpath ../data/crow-feats ./data/crow
+    python $TAGLESS_ROOT/tagless/prep.py --inpath ../data/crow-feats ./data/crow
     
     # Run server
     python -m tagless --outpath ./results/my-labels --crow ./data/crow
