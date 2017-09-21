@@ -35,7 +35,7 @@ class SimpleLASSampler(SimpleLAS):
             eta=eta,
             alpha=alpha,
             n=n,
-            verbose=verbose
+            verbose=verbose,
         )
     
     def get_next(self):

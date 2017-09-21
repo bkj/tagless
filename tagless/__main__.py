@@ -9,6 +9,7 @@
 import os
 import re
 import sys
+import h5py
 import json
 import atexit
 import argparse
@@ -33,6 +34,8 @@ def parse_args():
     parser.add_argument('--seeds', type=str, default='')
     parser.add_argument('--img-dir', type=str, default=os.getcwd())
     parser.add_argument('--n-las', type=int, default=5)
+    
+    parser.add_argument('--hot-start', type=str)
     
     return parser.parse_args()
 
@@ -64,9 +67,16 @@ class TaglessServer:
     def __init__(self, args):
         self.app = Flask(__name__)
         
-        self.mode = 'las'
-        sampler = SimpleLASSampler(args.crow, args.seeds if args.seeds else None)
-        sampler.labs = np.array([os.path.join(args.img_dir, l) for l in sampler.labs])
+        if not args.hot_start:
+            self.mode = 'las'
+            sampler = SimpleLASSampler(args.crow, args.seeds if args.seeds else None)
+            sampler.labs = np.array([os.path.join(args.img_dir, l) for l in sampler.labs])
+        else:
+            self.mode = 'uncertainty'
+            f = h5py.File(args.hot_start)
+            X, y, labs = f['X'].value, f['y'].value, f['labs'].value
+            sampler = UncertaintySampler(X, y, labs)
+        
         self.sampler = sampler
         
         self.app.add_url_rule('/', 'view_1', self.index)

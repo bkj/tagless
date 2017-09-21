@@ -15,7 +15,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--inpath', type=str)
     parser.add_argument('--outpath', type=str)
-    parser.add_argument('--max-records', type=int, default=10000)
+    parser.add_argument('--max-records', type=int, default=-1)
     return parser.parse_args()
 
 if __name__ == "__main__":

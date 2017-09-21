@@ -1,2 +1,3 @@
+git+https://github.com/bkj/tdesc
 git+https://github.com/bkj/libact
 git+https://github.com/bkj/simple_las
