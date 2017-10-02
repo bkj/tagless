@@ -115,5 +115,5 @@ class ElasticsearchSampler():
     def is_labeled(self, idx):
         return idx in self.labeled_idxs
     
-    def save(self):
+    def save(self, path):
         pass
