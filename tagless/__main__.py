@@ -22,6 +22,7 @@ from flask import Flask, Response, request, abort, \
 
 from simple_las_sampler import SimpleLASSampler
 from uncertainty_sampler import UncertaintySampler
+from elasticsearch_sampler import ElasticsearchSampler
 
 # --
 # Args
@@ -34,6 +35,10 @@ def parse_args():
     parser.add_argument('--seeds', type=str, default='')
     parser.add_argument('--img-dir', type=str, default=os.getcwd())
     parser.add_argument('--n-las', type=int, default=5)
+    
+    parser.add_argument('--es-host', type=str, default='localhost')
+    parser.add_argument('--es-port', type=int, default=9200)
+    parser.add_argument('--es-index', type=str, default='tagless-v0')
     
     parser.add_argument('--hot-start', type=str)
     
@@ -67,7 +72,13 @@ class TaglessServer:
     def __init__(self, args):
         self.app = Flask(__name__)
         
-        if not args.hot_start:
+        if args.sampler == 'elasticsearch':
+            self.mode = 'elasticsearch'
+            sampler = ElasticsearchSampler(args.crow, args.es_host, args.es_port, args.es_index)
+            sampler.labs = np.array([os.path.join(args.img_dir, l) for l in sampler.labs])
+            sampler._init_index()
+            
+        elif not args.hot_start:
             self.mode = 'las'
             sampler = SimpleLASSampler(args.crow, args.seeds if args.seeds else None)
             sampler.labs = np.array([os.path.join(args.img_dir, l) for l in sampler.labs])
@@ -103,6 +114,7 @@ class TaglessServer:
         return render_template('index.html', **{'images': images})
     
     def label(self):
+        session_id = request.headers['Tagless-Session-Id']
         req = request.get_json()
         
         # Everything after the domain (as absolute path)
@@ -112,7 +124,7 @@ class TaglessServer:
         idx = np.where(self.sampler.labs == filename)[0][0]
         out = []
         if not self.sampler.is_labeled(idx):
-            self.sampler.set_label(idx, req['label'])
+            self.sampler.set_label(idx, req['label'], session_id=session_id)
             
             # Next image for annotation
             idxs = self.sampler.get_next()

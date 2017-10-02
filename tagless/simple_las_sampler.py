@@ -41,7 +41,7 @@ class SimpleLASSampler(SimpleLAS):
     def get_next(self):
         return self.next_message
     
-    def set_label(self, idx, lab):
+    def set_label(self, idx, lab, session_id=None):
         self.setLabel(idx, lab)
     
     def get_data(self):
