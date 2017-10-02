@@ -25,13 +25,13 @@ class UncertaintySampler(object):
         self.uc = UncertaintySampling(self.dataset, method='lc', model=LinearSVC())
         self.n = n
     
-    def get_next(self):
+    def get_next(self, session_id=None):
         print >> sys.stderr, 'get_next: start'
         out = self.uc.make_query(n=self.n)
         print >> sys.stderr, 'get_next: done'
         return out
     
-    def set_label(self, idx, label):
+    def set_label(self, idx, label, session_id=None):
         print >> sys.stderr, 'set_label: start'
         out = self.dataset.update(idx, label)
         print >> sys.stderr, 'set_label: done'

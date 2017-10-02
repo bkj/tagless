@@ -127,7 +127,7 @@ class TaglessServer:
             self.sampler.set_label(idx, req['label'], session_id=session_id)
             
             # Next image for annotation
-            idxs = self.sampler.get_next()
+            idxs = self.sampler.get_next(session_id)
             for idx in idxs:
                 if idx not in self.sent:
                     out.append(load_image(self.sampler.labs[idx]))

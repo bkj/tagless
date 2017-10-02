@@ -38,7 +38,7 @@ class SimpleLASSampler(SimpleLAS):
             verbose=verbose,
         )
     
-    def get_next(self):
+    def get_next(self, session_id=None):
         return self.next_message
     
     def set_label(self, idx, lab, session_id=None):

@@ -14,11 +14,11 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import streaming_bulk
 
 class ElasticsearchSampler():
-    def __init__(self, crow, es_host, es_port, es_index, n=10):
+    def __init__(self, crow, es_host, es_port, es_index):
         self.labs = h5py.File(crow)['labs'].value
-        self.n = n
         self.labeled_idxs = set([])
         self.hits = set([])
+        self.open_sessions = set([])
         
         self.es_index = es_index
         self.doc_type = "image"
@@ -52,11 +52,11 @@ class ElasticsearchSampler():
     def _get_seed(self):
         return int(round(time.time() * 10000))
     
-    def get_next(self):
+    def get_next(self, session_id=None):
         res = self.client.search(**{
             "index" : self.es_index,
             "body" : {
-                "size" : self.n,
+                "size" : 10 if not session_id else 1,
                 "query" : {
                     "function_score" : {
                         "query" : {
@@ -79,9 +79,6 @@ class ElasticsearchSampler():
                 }
             }
         })
-        
-        # Set number of images to be 1
-        self.n = 1
         
         return np.array([r['_source']['idx'] for r in res['hits']['hits']])
     
