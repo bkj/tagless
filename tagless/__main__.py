@@ -21,6 +21,8 @@ from datetime import datetime
 
 from flask import Flask, Response, request, abort, \
     render_template, send_from_directory, jsonify, send_file
+from flask_basicauth import BasicAuth
+
 
 from simple_las_sampler import SimpleLASSampler
 from uncertainty_sampler import UncertaintySampler
@@ -47,6 +49,11 @@ def parse_args():
     parser.add_argument('--labels', type=str, default='')
     
     parser.add_argument('--hot-start', type=str)
+    
+    parser.add_argument('--port', type=int, default=5050)
+    parser.add_argument('--require-authentication', action='store_true')
+    parser.add_argument('--username', type=str, default="tagless")
+    parser.add_argument('--password', type=str, default='90-poi')
     
     args = parser.parse_args()
     if args.sampler != 'elasticsearch':
@@ -83,6 +90,13 @@ class TaglessServer:
     
     def __init__(self, args):
         self.app = Flask(__name__)
+        
+        # Configure authentication
+        if args.require_authentication:
+            self.app.config['BASIC_AUTH_USERNAME'] = args.username
+            self.app.config['BASIC_AUTH_PASSWORD'] = args.password
+            self.app.config['BASIC_AUTH_FORCE'] = True
+            basic_auth = BasicAuth(self.app)
         
         if args.sampler == 'elasticsearch':
             self.mode = 'elasticsearch'
@@ -189,7 +203,12 @@ class TaglessServer:
         self.mode = 'uncertainty'
         print >> sys.stderr, 'TaglessServer: las -> uncertainty | done'
 
+
 if __name__ == "__main__":
     args = parse_args()
-    server = TaglessServer(args)
-    server.app.run(debug=True, host='0.0.0.0', use_reloader=False)
+    TaglessServer(args).app.run(
+        host='0.0.0.0',
+        port=args.port,
+        debug=True,
+        use_reloader=False
+    )

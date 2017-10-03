@@ -33,14 +33,14 @@ IMG_DIR="/srv/e2/instagram/trickle/images/"
 # --es-index => name of ES index to write to
 
 sudo docker run -it \
-    -p 5000:5000 \
+    -p 5050:5050 \
     -v $IMG_DIR:/img_dir/ \
     --mount type=bind,src=$FILENAMES,target=/filenames \
     tagless python -m tagless \
         --sampler elasticsearch \
         --filenames /filenames \
         --img-dir /img_dir/ \
-        --labels 'LA,NY' \
+        --labels 'LA,NY,NONE' \
         --es-host 10.1.90.130 \
         --es-index tagless-docker-v0
 

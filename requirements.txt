@@ -4,6 +4,7 @@ pandas
 numpy
 Pillow
 flask
+Flask-BasicAuth
 elasticsearch==5.2.0
 git+https://github.com/bkj/libact
 git+https://github.com/bkj/simple_las
