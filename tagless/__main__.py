@@ -17,6 +17,8 @@ import numpy as np
 import pandas as pd
 from glob import glob
 from PIL import Image
+from datetime import datetime
+
 from flask import Flask, Response, request, abort, \
     render_template, send_from_directory, jsonify, send_file
 
@@ -38,9 +40,11 @@ def parse_args():
     
     parser.add_argument('--es-host', type=str, default='localhost')
     parser.add_argument('--es-port', type=int, default=9200)
-    parser.add_argument('--es-index', type=str, default='tagless-v0')
+    parser.add_argument('--es-index', type=str, default='tagless-%s' % datetime.now().strftime('%Y%m%d_%H%M%S'))
+    parser.add_argument('--labels', type=str, default='')
     
     parser.add_argument('--hot-start', type=str)
+    
     
     return parser.parse_args()
 
@@ -93,16 +97,34 @@ class TaglessServer:
         self.app.add_url_rule('/', 'view_1', self.index)
         self.app.add_url_rule('/<path:x>', 'view_2', lambda x: send_file('/' + x))
         self.app.add_url_rule('/label', 'view_3', self.label, methods=['POST'])
+        self.app.add_url_rule('/meta', 'view_4', self.meta)
         
         self.n_las = args.n_las
         self.outpath = args.outpath
         self.sent = set([])
         
+        self.classes = args.labels.split(',')
+        if len(self.classes) > 4:
+            raise Exception('!! too many classes')
+        
+        self.keycodes = [81, 87, 69, 82]
+        self.keycodes = self.keycodes[:len(self.classes)]
+        
+        self.colors = ['blue', 'red', 'green', 'orange']
+        self.colors = self.colors[:len(self.classes)]
+        
         def save():
             self.sampler.save(self.outpath)
         
         atexit.register(save)
-        
+    
+    def meta(self):
+        return jsonify({
+            "keycodes" : self.keycodes,
+            "all_hover_colors" : self.colors,
+            "all_labels" : self.all_labels,
+        })
+    
     def index(self):
         idxs = self.sampler.get_next()
         images = []

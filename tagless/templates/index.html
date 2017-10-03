@@ -18,6 +18,16 @@
             background-color: #444;
             box-shadow: 0 0 10px rgba(0,0,0,0.3);
         }
+        
+        .label {
+            color: white;
+            font-size: 2em;
+            text-align:center;
+            position: absolute;
+            font-family: arial;
+            padding-left: 5px;
+            padding-top: 5px;
+        }
 
         img {
             display: block;
@@ -48,6 +58,7 @@
                 _.map(responses, function(response) {
                     $('#images').append(
                         `<a class="image" style="width: ${response.width}px; height: ${response.height}px">` + 
+                            `<div class='label' style='z-index: 0'></div>` +
                             `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
                         `</a>`
                     )
@@ -61,16 +72,68 @@
             }
           });
         }
-
+        
+        default_hover_color = 'black';
+        default_label = '';
+        state = -1;
+        label = default_label;
+        hover_color = default_hover_color;
+        
+        
         $(document).ready(function() {
             $('img').unveil();
-            $("body").on("click", ".image", function(e){
-                $(this).css('background-color', 'green').children().css('opacity', '0.5');
-                next_image(e, true) 
-            });
-            $("body").on("contextmenu", ".image", function(e){
-                $(this).css('background-color', 'red').children().css('opacity', '0.5');
-                next_image(e, false) 
+            
+            $.ajax({
+                type: 'GET',
+                url: 'meta',
+                success: function(response, status) {
+                    
+                    keycodes = response['keycodes'];
+                    hover_colors = response['hover_colors'];
+                    classes = response['classes'];
+                    
+                    console.log(keycodes);
+                    
+                    $("body").on("keydown", function(e) {
+                        state = keycodes.indexOf(e.keyCode);
+                        if(state >= 0) {
+                            hover_color = hover_colors[state];
+                            label = classes[state];                    
+                        } else {
+                            hover_color = default_hover_color;
+                            label = default_label;
+                        }
+                        
+                        var tmp = $('.active').not('.annotated');
+                        tmp.css('background-color', hover_color);
+                        tmp.find('.label').text(label);
+                    });
+                    
+                    $("body").on("click", ".image", function(e){
+                        if(state >= 0) {
+                            var tmp = $(this).css('background-color', hover_color)
+                                .removeClass('active').addClass('annotated')
+                            tmp.find('img').css('opacity', '0.4');
+                            tmp.find('.label').css('font-size', '6em');
+                            
+                            next_image(e, state)                     
+                        }
+                    });
+                    
+                    $("body").on("mouseover", ".image", function(e) {
+                        var tmp = $(this).not('.annotated').css('background-color', hover_color)
+                            .addClass('active')
+                        tmp.find('img').css('opacity', '0.5');
+                        tmp.find('div').text(label);
+                        
+                        $(this).on('mouseout', function(e) {
+                            var tmp = $(this).not('.annotated').css('background-color', default_hover_color)
+                                .removeClass('active')
+                            tmp.find('img').css('opacity', '1.0');
+                            tmp.find('.label').text(default_label);
+                        });
+                    });
+                }
             });
         });
         
@@ -81,7 +144,8 @@
     <div id="images">
         {% for image in images %}
             <a class="image" style="width: {{ image.width }}px; height: {{ image.height }}px">
-                <img src="{{ image.src }}" width="{{ image.width }}" height="{{ image.height }}" />
+                <div class='label' style='z-index: 0'></div>
+                <img style='z-index:1' src="{{ image.src }}" width="{{ image.width }}" height="{{ image.height }}" />
             </a>
         {% endfor %}
     </div>
