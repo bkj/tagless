@@ -51,6 +51,7 @@ def parse_args():
     parser.add_argument('--hot-start', type=str)
     
     parser.add_argument('--port', type=int, default=5050)
+    parser.add_argument('--img-dim', type=int, default=300)
     parser.add_argument('--require-authentication', action='store_true')
     parser.add_argument('--username', type=str, default="tagless")
     parser.add_argument('--password', type=str, default='90-poi')
@@ -66,15 +67,15 @@ def parse_args():
 # --
 # Helpers
 
-def load_image(filename, default_width=300, default_height=300):
+def load_image(filename, width=300, height=300):
     w, h = Image.open(filename).size
     aspect = float(w) / h
     
-    if aspect > float(default_width) / default_height:
-        width = min(w, default_width)
+    if aspect > float(width) / height:
+        width = min(w, width)
         height = int(width / aspect)
     else:
-        height = min(h, default_width)
+        height = min(h, width)
         width = int(height * aspect)
     
     return {
@@ -125,6 +126,7 @@ class TaglessServer:
         self.outpath = args.outpath
         self.sent = set([])
         
+        # Set annotation colors
         self.classes = args.labels.split(',')
         if len(self.classes) > 4:
             raise Exception('!! too many classes')
@@ -135,6 +137,10 @@ class TaglessServer:
         self.colors = ['blue', 'red', 'green', 'orange']
         self.colors = self.colors[:len(self.classes)]
         
+        # Set image dimensions
+        self.img_dim = args.img_dim
+        
+        # Set action at exit
         def save():
             self.sampler.save(self.outpath)
         
@@ -152,7 +158,7 @@ class TaglessServer:
         images = []
         for idx in idxs:
             if idx not in self.sent:
-                images.append(load_image(self.sampler.labs[idx]))
+                images.append(load_image(self.sampler.labs[idx], self.img_dim, self.img_dim))
                 self.sent.add(idx)
         
         return render_template('index.html', **{'images': images})
@@ -174,7 +180,7 @@ class TaglessServer:
             idxs = self.sampler.get_next(session_id)
             for idx in idxs:
                 if idx not in self.sent:
-                    out.append(load_image(self.sampler.labs[idx]))
+                    out.append(load_image(self.sampler.labs[idx], self.img_dim, self.img_dim))
                     self.sent.add(idx)
         
         req.update({
