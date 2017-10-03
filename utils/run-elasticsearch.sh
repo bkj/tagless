@@ -9,4 +9,4 @@ python -m tagless \
     --filenames fnames \
     --img-dir /srv/e2/instagram/trickle/images/ \
     --labels 'lax,nyc,no_label' \
-    --require-authentication
+    --require-authentication 

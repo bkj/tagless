@@ -79,7 +79,6 @@
         label = default_class;
         hover_color = default_color;
         
-        
         $(document).ready(function() {
             $('img').unveil();
             
@@ -91,8 +90,7 @@
                     keycodes = response['keycodes'];
                     colors   = response['colors'];
                     classes  = response['classes'];
-                    
-                    console.log(keycodes);
+                    allow_relabel = response['allow_relabel'];
                     
                     $("body").on("keydown", function(e) {
                         state = keycodes.indexOf(e.keyCode);
@@ -104,7 +102,9 @@
                             label = default_class;
                         }
                         
-                        var tmp = $('.active').not('.annotated');
+                        var tmp = $('.active')
+                        if(!allow_relabel) { tmp = tmp.not('.annotated') }
+                        
                         tmp.css('background-color', hover_color);
                         tmp.find('.label').text(label);
                     });
@@ -121,14 +121,18 @@
                     });
                     
                     $("body").on("mouseover", ".image", function(e) {
-                        var tmp = $(this).not('.annotated').css('background-color', hover_color)
-                            .addClass('active')
+                        var tmp = $(this);
+                        if(!allow_relabel) { tmp = tmp.not('.annotated') }
+                        tmp = tmp.css('background-color', hover_color).addClass('active')
+                        
                         tmp.find('img').css('opacity', '0.5');
                         tmp.find('div').text(label);
                         
                         $(this).on('mouseout', function(e) {
-                            var tmp = $(this).not('.annotated').css('background-color', default_color)
-                                .removeClass('active')
+                            var tmp = $(this);
+                            if(!allow_relabel) { tmp = tmp.not('.annotated') }
+                            tmp.css('background-color', default_color).removeClass('active')
+                            
                             tmp.find('img').css('opacity', '1.0');
                             tmp.find('.label').text(default_class);
                         });

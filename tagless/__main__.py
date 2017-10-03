@@ -52,6 +52,7 @@ def parse_args():
     
     parser.add_argument('--port', type=int, default=5050)
     parser.add_argument('--img-dim', type=int, default=300)
+    parser.add_argument('--allow-relabel', action='store_true')
     parser.add_argument('--require-authentication', action='store_true')
     parser.add_argument('--username', type=str, default="tagless")
     parser.add_argument('--password', type=str, default='90-poi')
@@ -139,6 +140,7 @@ class TaglessServer:
         
         # Set image dimensions
         self.img_dim = args.img_dim
+        self.allow_relabel = args.allow_relabel
         
         # Set action at exit
         def save():
@@ -151,6 +153,7 @@ class TaglessServer:
             "keycodes" : self.keycodes,
             "colors"   : self.colors,
             "classes"  : self.classes,
+            "allow_relabel" : self.allow_relabel,
         })
     
     def index(self):
@@ -182,6 +185,10 @@ class TaglessServer:
                 if idx not in self.sent:
                     out.append(load_image(self.sampler.labs[idx], self.img_dim, self.img_dim))
                     self.sent.add(idx)
+        
+        elif self.allow_relabel:
+            print >> sys.stderr, 'relabeling!'
+            self.sampler.set_label(idx, req['label'], session_id=session_id)
         
         req.update({
             'n_hits' : self.sampler.n_hits(),
