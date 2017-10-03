@@ -52,6 +52,8 @@ def parse_args():
     if args.sampler != 'elasticsearch':
         assert args.outpath is not None
     
+    print >> sys.stderr, vars(args)
+    
     return args
 
 # --
