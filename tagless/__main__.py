@@ -31,8 +31,10 @@ from elasticsearch_sampler import ElasticsearchSampler
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--outpath', type=str, required=True)
+    
     parser.add_argument('--sampler', type=str, default='simple_las')
+    
+    parser.add_argument('--outpath', type=str)
     parser.add_argument('--crow', type=str, default='./data/crow')
     parser.add_argument('--seeds', type=str, default='')
     parser.add_argument('--img-dir', type=str, default=os.getcwd())
@@ -41,12 +43,16 @@ def parse_args():
     parser.add_argument('--es-host', type=str, default='localhost')
     parser.add_argument('--es-port', type=int, default=9200)
     parser.add_argument('--es-index', type=str, default='tagless-%s' % datetime.now().strftime('%Y%m%d_%H%M%S'))
+    parser.add_argument('--filenames', type=str, default='')
     parser.add_argument('--labels', type=str, default='')
     
     parser.add_argument('--hot-start', type=str)
     
+    args = parser.parse_args()
+    if args.sampler != 'elasticsearch':
+        assert args.outpath is not None
     
-    return parser.parse_args()
+    return args
 
 # --
 # Helpers
@@ -78,7 +84,7 @@ class TaglessServer:
         
         if args.sampler == 'elasticsearch':
             self.mode = 'elasticsearch'
-            sampler = ElasticsearchSampler(args.crow, args.es_host, args.es_port, args.es_index)
+            sampler = ElasticsearchSampler(args.filenames, args.es_host, args.es_port, args.es_index)
             sampler.labs = np.array([os.path.join(args.img_dir, l) for l in sampler.labs])
             sampler._init_index()
             
@@ -121,8 +127,8 @@ class TaglessServer:
     def meta(self):
         return jsonify({
             "keycodes" : self.keycodes,
-            "all_hover_colors" : self.colors,
-            "all_labels" : self.all_labels,
+            "colors"   : self.colors,
+            "classes"  : self.classes,
         })
     
     def index(self):

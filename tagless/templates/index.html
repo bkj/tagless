@@ -73,11 +73,11 @@
           });
         }
         
-        default_hover_color = 'black';
-        default_label = '';
+        default_color = 'black';
+        default_class = '';
         state = -1;
-        label = default_label;
-        hover_color = default_hover_color;
+        label = default_class;
+        hover_color = default_color;
         
         
         $(document).ready(function() {
@@ -89,19 +89,19 @@
                 success: function(response, status) {
                     
                     keycodes = response['keycodes'];
-                    hover_colors = response['hover_colors'];
-                    classes = response['classes'];
+                    colors   = response['colors'];
+                    classes  = response['classes'];
                     
                     console.log(keycodes);
                     
                     $("body").on("keydown", function(e) {
                         state = keycodes.indexOf(e.keyCode);
                         if(state >= 0) {
-                            hover_color = hover_colors[state];
+                            hover_color = colors[state];
                             label = classes[state];                    
                         } else {
-                            hover_color = default_hover_color;
-                            label = default_label;
+                            hover_color = default_color;
+                            label = default_class;
                         }
                         
                         var tmp = $('.active').not('.annotated');
@@ -127,10 +127,10 @@
                         tmp.find('div').text(label);
                         
                         $(this).on('mouseout', function(e) {
-                            var tmp = $(this).not('.annotated').css('background-color', default_hover_color)
+                            var tmp = $(this).not('.annotated').css('background-color', default_color)
                                 .removeClass('active')
                             tmp.find('img').css('opacity', '1.0');
-                            tmp.find('.label').text(default_label);
+                            tmp.find('.label').text(default_class);
                         });
                     });
                 }

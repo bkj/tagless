@@ -14,8 +14,9 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import streaming_bulk
 
 class ElasticsearchSampler():
-    def __init__(self, crow, es_host, es_port, es_index):
-        self.labs = h5py.File(crow)['labs'].value
+    def __init__(self, filenames, es_host, es_port, es_index):
+        self.labs = open(filenames).read().splitlines()
+        
         self.labeled_idxs = set([])
         self.hits = set([])
         self.open_sessions = set([])
