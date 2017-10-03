@@ -1,25 +1,80 @@
 #!/bin/bash
 
 # run.sh
+#
+# Script for installing and launching tagless docker container
+
+# --
+# Prelim
+
+sudo apt-get update
+sudo apt-get install -y git wget jq
+
+# --
+# Install docker
+
+sudo apt-get update
+sudo apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    software-properties-common
+
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+sudo add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+
+sudo apt-get update
+
+sudo apt-get install -y docker-ce
+
+# --
+# Install elasticsearch
+
+sudo apt-get install -y default-jdk
+
+mkdir ~/software
+cd software
+wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.2.0.tar.gz
+tar -xzvf elasticsearch-5.2.0.tar.gz
+rm elasticsearch-5.2.0.tar.gz
+mv elasticsearch-5.2.0 elasticsearch
+
+echo "transport.host: localhost" > elasticsearch/config/elasticsearch.yml
+echo "transport.tcp.port: 9300" >> elasticsearch/config/elasticsearch.yml
+echo "http.port: 9200" >> elasticsearch/config/elasticsearch.yml
+echo "network.host: 0.0.0.0" >> elasticsearch/config/elasticsearch.yml
+
+# screen -S es
+# ./elasticsearch/bin/elasticsearch
 # 
-# Run Docker container w/ annotation interface
+# !! This has to be run on the host, because the Docker images get deleted after use
 
 # --
-# Start elasticsearch on host 
-# !! Important that this doesn't run inside Docker, because 
-#   the Docker image gets blown away
+# Download tagless
 
-# ... ./bin/elasticsearch ...
+mkdir projects
+cd projects
+git clone https://github.com/bkj/tagless -b simple.auth
+cd tagless/docker
 
 # --
-# Run container
+# Build image
 
 sudo docker build -t tagless .
 
-# List of image filenames (absolute path)
-FILENAMES="/srv/e2/instagram/trickle/tagless/fnames"
+# --
+# Run image
+
+# Path to list of filenames (absolute)
+FILENAMES="/home/ubuntu/fnames"
 # Prefix for image filenames (absolute path)
-IMG_DIR="/srv/e2/instagram/trickle/images/"
+IMG_DIR="/home/ubuntu/"
+# Host IP address
+HOST_IP="172.31.1.39"
 
 # Some parameter explanations:
 #
@@ -31,8 +86,10 @@ IMG_DIR="/srv/e2/instagram/trickle/images/"
 # --labels => possible classes (up to 4 right now)
 # --es-host => IP of ES server to use
 # --es-index => name of ES index to write to
+# --require-authentication => require authentication?
+# --allow-relabel => allow labels to be changed -- some algorithms shouldn't allow this
 
-sudo docker run -it \
+sudo docker run -d \
     -p 5050:5050 \
     -v $IMG_DIR:/img_dir/ \
     --mount type=bind,src=$FILENAMES,target=/filenames \
@@ -40,14 +97,16 @@ sudo docker run -it \
         --sampler elasticsearch \
         --filenames /filenames \
         --img-dir /img_dir/ \
-        --labels 'LA,NY,NONE' \
-        --es-host 10.1.90.130 \
-        --es-index tagless-docker-v0
+        --labels 'LA,NY,UNK' \
+        --es-host $HOST_IP \
+        --es-index tagless-docker-prod-v1 \
+        --require-authentication \
+        --allow-relabel
 
 # --
 # Check to see if annotations got saved
 
-curl -XPOST http://localhost:9200/tagless-docker-v0/_search -d '{
+curl -XPOST http://localhost:9200/tagless-docker-prod-v1/_search -d '{
     "query" : {
         "term" : {
             "annotated" : true
