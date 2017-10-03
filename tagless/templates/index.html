@@ -102,35 +102,39 @@
                             label = default_class;
                         }
                         
-                        var tmp = $('.active')
-                        if(!allow_relabel) { tmp = tmp.not('.annotated') }
-                        
+                        var tmp = $('.active').not('.annotated');
                         tmp.css('background-color', hover_color);
                         tmp.find('.label').text(label);
                     });
                     
                     $("body").on("click", ".image", function(e){
                         if(state >= 0) {
-                            var tmp = $(this).css('background-color', hover_color)
-                                .removeClass('active').addClass('annotated')
-                            tmp.find('img').css('opacity', '0.4');
-                            tmp.find('.label').css('font-size', '6em');
+                            var tmp = $(this)
                             
-                            next_image(e, state)                     
+                            if(!allow_relabel) {
+                                if(tmp.hasClass('annotated')) {
+                                    alert('cannot relabel!')
+                                    return;
+                                }
+                            }
+                            
+                            tmp.css('background-color', hover_color).removeClass('active').addClass('annotated')
+                            tmp.find('img').css('opacity', '0.4');
+                            tmp.find('.label').text(label).css('font-size', '6em');
+                            
+                            next_image(e, state)
                         }
                     });
                     
                     $("body").on("mouseover", ".image", function(e) {
-                        var tmp = $(this);
-                        if(!allow_relabel) { tmp = tmp.not('.annotated') }
+                        var tmp = $(this).not('.annotated');
                         tmp = tmp.css('background-color', hover_color).addClass('active')
                         
                         tmp.find('img').css('opacity', '0.5');
                         tmp.find('div').text(label);
                         
                         $(this).on('mouseout', function(e) {
-                            var tmp = $(this);
-                            if(!allow_relabel) { tmp = tmp.not('.annotated') }
+                            var tmp = $(this).not('.annotated');
                             tmp.css('background-color', default_color).removeClass('active')
                             
                             tmp.find('img').css('opacity', '1.0');
