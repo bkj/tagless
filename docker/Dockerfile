@@ -11,7 +11,9 @@ RUN rm Anaconda2-4.4.0-Linux-x86_64.sh
 RUN echo 'export PATH="/root/.anaconda/bin:$PATH"' >> ~/.bashrc 
 ENV PATH="/root/.anaconda/bin:${PATH}"
 
-# Download qnas + datasets
+# Download tagless + datasets
+RUN apt-get install -y liblapacke-dev
+
 RUN mkdir -p /root/projects/
 WORKDIR /root/projects
 RUN git clone https://github.com/bkj/tagless -b simple
