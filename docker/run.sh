@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# run.sh
+# 
+# Run Docker container w/ annotation interface
+
 # --
 # Start elasticsearch on host 
 # !! Important that this doesn't run inside Docker, because 
@@ -12,8 +16,21 @@
 
 sudo docker build -t tagless .
 
-IMG_DIR="/srv/e2/instagram/trickle/images/"
+# List of image filenames (absolute path)
 FILENAMES="/srv/e2/instagram/trickle/tagless/fnames"
+# Prefix for image filenames (absolute path)
+IMG_DIR="/srv/e2/instagram/trickle/images/"
+
+# Some parameter explanations:
+#
+# -p => opens port 5000
+# --mount => mounts filenames
+# --sampler => sets elasticsearch sampler (as opposed to simple_las)
+# --filenames => path to file w/ list of filenames
+# --img-dir => prefix for filenames
+# --labels => possible classes (up to 4 right now)
+# --es-host => IP of ES server to use
+# --es-index => name of ES index to write to
 
 sudo docker run -it \
     -p 5000:5000 \
@@ -28,7 +45,7 @@ sudo docker run -it \
         --es-index tagless-docker-v0
 
 # --
-# Make sure some annotations took
+# Check to see if annotations got saved
 
 curl -XPOST http://localhost:9200/tagless-docker-v0/_search -d '{
     "query" : {

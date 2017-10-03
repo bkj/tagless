@@ -2,6 +2,10 @@
 
 Run tagless (elasticsearch version) in a Docker container
 
+#### Usage
+
+Look at `run.sh` -- should be reasonably straightforward
+
 #### Todo
 
 Wrap the active search version in Docker container
