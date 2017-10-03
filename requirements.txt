@@ -2,7 +2,8 @@ git+https://github.com/bkj/tdesc
 h5py
 pandas
 numpy
-PIL
+Pillow
 flask
+elasticsearch==5.2.0
 git+https://github.com/bkj/libact
 git+https://github.com/bkj/simple_las
