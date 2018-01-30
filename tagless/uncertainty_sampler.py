@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    simple_las_sample.py
+    uncertainty_sampler.py
 """
 
 import sys

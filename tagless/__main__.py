@@ -22,6 +22,7 @@ from flask import Flask, Response, request, abort, \
 
 from simple_las_sampler import SimpleLASSampler
 from uncertainty_sampler import UncertaintySampler
+from validation_sampler import ValidationSampler
 
 # --
 # Args
@@ -67,7 +68,12 @@ class TaglessServer:
     def __init__(self, args):
         self.app = Flask(__name__)
         
-        if not args.hot_start:
+        if args.validation:
+            self.mode = 'validation'
+            f = h5py.File(args.validation)
+            preds, labs, y = f['preds'].value, f['labs'].value, f['y'].value
+            sampler = ValidationSampler(preds, labs, y)
+        elif not args.hot_start:
             self.mode = 'las'
             sampler = SimpleLASSampler(args.crow, args.seeds if args.seeds else None)
             sampler.labs = np.array([os.path.join(args.img_dir, l) for l in sampler.labs])
