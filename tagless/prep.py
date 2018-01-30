@@ -38,7 +38,7 @@ if __name__ == "__main__":
     print >> sys.stderr, 'saving'
     outfile = h5py.File(args.outpath)
     outfile['feats'] = feats
-    outfile['labs'] = labs
+    outfile['labs'] = labs.astype(str)
     outfile.close()
     
     print >> sys.stderr, 'written to %s' % args.outpath
