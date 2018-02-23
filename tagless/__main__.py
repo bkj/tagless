@@ -73,6 +73,7 @@ class TaglessServer:
             sampler.labs = np.array([os.path.join(args.img_dir, l) for l in sampler.labs])
         else:
             self.mode = 'uncertainty'
+            assert os.path.exists(args.hot_start), "%s does not exist" % args.hot_start
             f = h5py.File(args.hot_start)
             X, y, labs = f['X'].value, f['y'].value, f['labs'].value
             sampler = UncertaintySampler(X, y, labs)
