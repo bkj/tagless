@@ -33,12 +33,13 @@ from random_sampler import RandomSampler
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--outpath', type=str, required=True)
-    parser.add_argument('--crow', type=str, default='./data/crow')
+    parser.add_argument('--inpath', type=str, default='./data/crow')
     parser.add_argument('--seeds', type=str, default='')
     parser.add_argument('--img-dir', type=str, default=os.getcwd())
     
     parser.add_argument('--mode', type=str, default='las')
     parser.add_argument('--n-las', type=int, default=float('inf'))
+    parser.add_argument('--no-permute', action="store_true")
     
     return parser.parse_args()
 
@@ -67,22 +68,22 @@ def load_image(filename, default_width=300, default_height=300):
 
 class TaglessServer:
     
-    def __init__(self, args):
+    def __init__(self, args, max_outstanding=64):
         self.app = Flask(__name__)
         
         self.mode = args.mode
         if self.mode == 'validation':
-            f = h5py.File(args.validation)
+            f = h5py.File(args.inpath)
             preds, labs, y = f['preds'].value, f['labs'].value, f['y'].value
-            sampler = ValidationSampler(preds, labs, y)
+            sampler = ValidationSampler(preds=preds, labs=labs, y=y, no_permute=args.no_permute)
         elif self.mode == 'las':
-            sampler = SimpleLASSampler(crow=args.crow, seeds=args.seeds if args.seeds else None, prefix=args.img_dir)
+            sampler = SimpleLASSampler(crow=args.inpath, seeds=args.seeds if args.seeds else None, prefix=args.img_dir)
         elif self.mode == 'random':
-            sampler = RandomSampler(crow=args.crow, prefix=args.img_dir)
+            sampler = RandomSampler(crow=args.inpath, prefix=args.img_dir)
         elif self.mode == 'uncertainty':
-            f = h5py.File(args.hot_start)
+            f = h5py.File(args.inpath)
             X, y, labs = f['X'].value, f['y'].value, f['labs'].value
-            sampler = UncertaintySampler(X, y, labs)
+            sampler = UncertaintySampler(X=X, y=y, labs=labs)
         else:
             raise Exception('TaglessServer: unknown mode %s' % args.mode, file=sys.stderr)
         
@@ -96,6 +97,9 @@ class TaglessServer:
         self.outpath = args.outpath
         self.sent = set([])
         
+        self.outstanding = 0
+        self.max_outstanding = max_outstanding
+        
         def save():
             self.sampler.save(self.outpath)
         
@@ -108,10 +112,14 @@ class TaglessServer:
             if idx not in self.sent:
                 images.append(load_image(self.sampler.labs[idx]))
                 self.sent.add(idx)
+                self.outstanding += 1
         
+        print('self.outstanding', self.outstanding)
         return render_template('index.html', **{'images': images})
     
     def label(self):
+        self.outstanding -= 1
+        print('self.outstanding', self.outstanding)
         req = request.get_json()
         
         # Everything after the domain (as absolute path)
@@ -124,12 +132,14 @@ class TaglessServer:
             self.sampler.set_label(idx, req['label'])
             
             # Next image for annotation
-            idxs = self.sampler.get_next()
-            for idx in idxs:
-                if idx not in self.sent:
-                    out.append(load_image(self.sampler.labs[idx]))
-                    self.sent.add(idx)
-        
+            if self.outstanding < self.max_outstanding:
+                idxs = self.sampler.get_next()
+                for idx in idxs:
+                    if idx not in self.sent:
+                        out.append(load_image(self.sampler.labs[idx]))
+                        self.sent.add(idx)
+                        self.outstanding += 1
+            
         req.update({
             'n_hits'    : self.sampler.n_hits(),
             'n_labeled' : self.sampler.n_labeled(),
@@ -142,6 +152,7 @@ class TaglessServer:
             if req['n_labeled'] > req['n_hits']:
                 self._switch_sampler()
         
+        print('self.outstanding', self.outstanding)
         return(jsonify(out))
     
     def _switch_sampler(self):

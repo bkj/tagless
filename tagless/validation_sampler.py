@@ -11,11 +11,12 @@ import numpy as np
 
 class ValidationSampler(object):
     
-    def __init__(self, preds, labs, y, topk=1500, n=2):
+    def __init__(self, preds, labs, y, no_permute=False, topk=1500, n=2):
         """ there is surely a better way to do this -- what's the optimal way to estimate the AUC? """
         
-        self.order = np.argsort(preds)[::-1][:topk] # get top k predictions
-        self.order = np.random.permutation(self.order) # randomly sort
+        self.order = np.argsort(-preds)[:topk] # get top k predictions
+        if not no_permute:
+            self.order = np.random.permutation(self.order) # randomly sort
         
         self._counter = 0
         

@@ -20,7 +20,7 @@ from rsub import *
 from matplotlib import pyplot as plt
 
 
-inpath = 'results/run-v2-uncertainty-20180222_215343.h5'
+inpath = 'results/run-gun-v1-uncertainty-20180510_125633.h5'
 
 f = h5py.File(inpath)
 paths = f['labs'].value
@@ -46,10 +46,22 @@ cPickle.dump(model, open('results/hotel-20180130-v2.pkl', 'w'))
 
 u_preds = svc.decision_function(X_u)
 l_preds = svc.decision_function(X_l)
+
 _ = plt.hist(u_preds, 250, alpha=0.25)
+_ = plt.axvline(0, c='grey')
 show_plot()
 
-# ^^ Ideally, nice and bimodal
+_ = plt.hist(l_preds, 250, alpha=0.25) # Bimodal?
+show_plot()
+
+# >>
+_ = plt.hist(u_preds[u_preds > -2], 250, alpha=0.25)
+_ = plt.axvline(0, c='grey')
+show_plot()
+# <<
+
+# --
+# Examples
 
 # Negative examples
 for idx in np.random.choice(np.where(u_preds < 0)[0], 10):
@@ -62,14 +74,11 @@ for idx in np.random.choice(np.where(u_preds > 0)[0], 10):
     print idx, u_preds[idx], paths_u[idx]
     rsub(paths_u[idx])
 
-for p in paths_u[np.where((u_preds > 0))[0]]:
-    shutil.copy(p, './tmp2')
-
-
 # Marginal examples
 for idx in np.random.choice(np.where((u_preds > -1) & (u_preds < 0))[0], 10):
     print idx, u_preds[idx], paths_u[idx]
     rsub(paths_u[idx])
+
 
 all_preds = svc.decision_function(X)
 all_preds[labeled] = -np.inf
