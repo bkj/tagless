@@ -1,29 +1,30 @@
 #!/usr/bin/env python
 
 """
-    validation_sampler.py
+    random_sampler.py
 """
 
+import os
 import sys
 import h5py
 from datetime import datetime
 import numpy as np
 
-class ValidationSampler(object):
+class RandomSampler(object):
     
-    def __init__(self, preds, labs, y, topk=1500, n=2):
-        """ there is surely a better way to do this -- what's the optimal way to estimate the AUC? """
+    def __init__(self, crow, n=2, prefix=None):
         
-        self.order = np.argsort(preds)[::-1][:topk] # get top k predictions
-        self.order = np.random.permutation(self.order) # randomly sort
+        crow = h5py.File(crow)
+        self.labs = crow['labs'].value
+        if prefix is not None:
+            self.labs = np.array([os.path.join(prefix, l) for l in self.labs])
         
-        self._counter = 0
+        self.order = np.random.permutation(self.labs.shape[0])
         
-        self.preds = preds
-        self.labs = labs
-        self.y = y
+        self.y = np.zeros(self.labs.shape[0]) - 1
         self.validation_idx = []
         
+        self._counter = 0
         self.n = n
     
     def get_next(self):
@@ -54,7 +55,6 @@ class ValidationSampler(object):
         f = h5py.File('%s-%s-%s.h5' % (outpath, 'validation', datetime.now().strftime('%Y%m%d_%H%M%S')))
         f['y']              = self.y
         f['labs']           = self.labs
-        f['preds']          = self.preds
         f['validation_idx'] = np.array(self.validation_idx)
         f.close()
 

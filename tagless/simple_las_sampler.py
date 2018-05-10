@@ -4,13 +4,14 @@
     simple_las_sample.py
 """
 
+import os
 import sys
 import h5py
 import numpy as np
 from simple_las import SimpleLAS
 
 class SimpleLASSampler(SimpleLAS):
-    def __init__(self, crow, seeds=None, pi=0.05, eta=0.5, alpha=1e-6, n=10, verbose=False):
+    def __init__(self, crow, seeds=None, pi=0.05, eta=0.5, alpha=1e-6, n=10, verbose=False, prefix=None):
         init_labels = {}
         
         crow = h5py.File(crow)
@@ -27,6 +28,9 @@ class SimpleLASSampler(SimpleLAS):
             feats = crow['feats'].value
             self.labs = crow['labs'].value
         
+        if prefix is not None:
+            self.labs = np.array([os.path.join(prefix, l) for l in self.labs])
+        
         print >> sys.stderr, 'SimpleLASSampler: initializing w/ %s' % ('no seeds' if seeds is None else 'seeds')
         super(SimpleLASSampler, self).__init__(
             feats,
@@ -37,6 +41,8 @@ class SimpleLASSampler(SimpleLAS):
             n=n,
             verbose=verbose,
         )
+        
+        
     
     def get_next(self):
         return self.next_message

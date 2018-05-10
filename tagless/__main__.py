@@ -6,6 +6,8 @@
     Server for simple_las activate labeling of images
 """
 
+from __future__ import print_function
+
 import os
 import re
 import sys
@@ -23,6 +25,7 @@ from flask import Flask, Response, request, abort, \
 from simple_las_sampler import SimpleLASSampler
 from uncertainty_sampler import UncertaintySampler
 from validation_sampler import ValidationSampler
+from random_sampler import RandomSampler
 
 # --
 # Args
@@ -30,13 +33,12 @@ from validation_sampler import ValidationSampler
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--outpath', type=str, required=True)
-    parser.add_argument('--sampler', type=str, default='simple_las')
     parser.add_argument('--crow', type=str, default='./data/crow')
     parser.add_argument('--seeds', type=str, default='')
     parser.add_argument('--img-dir', type=str, default=os.getcwd())
-    parser.add_argument('--n-las', type=int, default=5)
     
-    parser.add_argument('--hot-start', type=str)
+    parser.add_argument('--mode', type=str, default='las')
+    parser.add_argument('--n-las', type=int, default=float('inf'))
     
     return parser.parse_args()
 
@@ -68,20 +70,21 @@ class TaglessServer:
     def __init__(self, args):
         self.app = Flask(__name__)
         
-        if args.validation:
-            self.mode = 'validation'
+        self.mode = args.mode
+        if self.mode == 'validation':
             f = h5py.File(args.validation)
             preds, labs, y = f['preds'].value, f['labs'].value, f['y'].value
             sampler = ValidationSampler(preds, labs, y)
-        elif not args.hot_start:
-            self.mode = 'las'
-            sampler = SimpleLASSampler(args.crow, args.seeds if args.seeds else None)
-            sampler.labs = np.array([os.path.join(args.img_dir, l) for l in sampler.labs])
-        else:
-            self.mode = 'uncertainty'
+        elif self.mode == 'las':
+            sampler = SimpleLASSampler(crow=args.crow, seeds=args.seeds if args.seeds else None, prefix=args.img_dir)
+        elif self.mode == 'random':
+            sampler = RandomSampler(crow=args.crow, prefix=args.img_dir)
+        elif self.mode == 'uncertainty':
             f = h5py.File(args.hot_start)
             X, y, labs = f['X'].value, f['y'].value, f['labs'].value
             sampler = UncertaintySampler(X, y, labs)
+        else:
+            raise Exception('TaglessServer: unknown mode %s' % args.mode, file=sys.stderr)
         
         self.sampler = sampler
         
@@ -128,18 +131,18 @@ class TaglessServer:
                     self.sent.add(idx)
         
         req.update({
-            'n_hits' : self.sampler.n_hits(),
+            'n_hits'    : self.sampler.n_hits(),
             'n_labeled' : self.sampler.n_labeled(),
-            'mode' : self.mode,
+            'mode'      : self.mode,
         })
-        print json.dumps(req)
+        print(json.dumps(req))
         sys.stdout.flush()
         
         if (req['n_hits'] > self.n_las) and (self.mode == 'las'):
             if req['n_labeled'] > req['n_hits']:
                 self._switch_sampler()
         
-        return jsonify(out)
+        return(jsonify(out))
     
     def _switch_sampler(self):
         """ switch from LAS to uncertainty sampling """
@@ -147,11 +150,11 @@ class TaglessServer:
         # Save LAS sampler
         self.sampler.save(self.outpath)
         
-        print >> sys.stderr, 'TaglessServer: las -> uncertainty | start'
+        print('TaglessServer: las -> uncertainty | start', file=sys.stderr)
         X, y = self.sampler.get_data()
         self.sampler = UncertaintySampler(X, y, self.sampler.labs)
         self.mode = 'uncertainty'
-        print >> sys.stderr, 'TaglessServer: las -> uncertainty | done'
+        print('TaglessServer: las -> uncertainty | done', file=sys.stderr)
 
 if __name__ == "__main__":
     args = parse_args()

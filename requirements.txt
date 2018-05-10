@@ -1,4 +1,3 @@
-git+https://github.com/bkj/tdesc
 h5py
 pandas
 numpy
