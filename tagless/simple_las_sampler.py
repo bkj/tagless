@@ -11,7 +11,7 @@ import numpy as np
 from simple_las import SimpleLAS
 
 class SimpleLASSampler(SimpleLAS):
-    def __init__(self, crow, seeds=None, pi=0.05, eta=0.5, alpha=1e-6, n=10, verbose=False, prefix=None):
+    def __init__(self, crow, seeds=None, pi=0.05, eta=0.5, alpha=1e-6, n=3, verbose=False, prefix=None):
         init_labels = {}
         
         crow = h5py.File(crow)
