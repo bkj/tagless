@@ -16,6 +16,8 @@ def parse_args():
     parser.add_argument('--inpath', type=str)
     parser.add_argument('--outpath', type=str)
     parser.add_argument('--max-records', type=int, default=-1)
+    parser.add_argument('--seeds', type=str, default=None)
+    parser.add_argument('--seed-path', type=str, default=None)
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -42,3 +44,14 @@ if __name__ == "__main__":
     outfile.close()
     
     print >> sys.stderr, 'written to %s' % args.outpath
+
+    if args.seeds:
+        seeds = set(args.seeds.split(","))
+        seed_df = df[df[0].isin(seeds)]
+        seed_feats = np.array(seed_df[range(1, seed_df.shape[1])])
+        seed_feats /= np.sqrt((seed_feats ** 2).sum(axis=1, keepdims=True))
+        seed_labs = np.array(seed_df[0])
+        seedfile = h5py.File(args.seed_path)
+        seedfile['feats'] = seed_feats
+        seedfile['labs'] = seed_labs.astype(str)
+        seedfile.close()
