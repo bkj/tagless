@@ -1,7 +1,9 @@
+requests
+pillow
 h5py
 pandas
 numpy
-PIL
 flask
+Cython
 git+https://github.com/bkj/libact
 git+https://github.com/bkj/simple_las

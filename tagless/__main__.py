@@ -10,6 +10,7 @@ from __future__ import print_function
 
 import os
 import re
+import requests
 import sys
 import h5py
 import json
@@ -40,6 +41,7 @@ def parse_args():
     parser.add_argument('--mode', type=str, default='las')
     parser.add_argument('--n-las', type=int, default=float('inf'))
     parser.add_argument('--no-permute', action="store_true")
+    parser.add_argument('--n-return', type=int, default=10)
     
     return parser.parse_args()
 
@@ -77,7 +79,7 @@ class TaglessServer:
             preds, labs, y = f['preds'].value, f['labs'].value, f['y'].value
             sampler = ValidationSampler(preds=preds, labs=labs, y=y, no_permute=args.no_permute)
         elif self.mode == 'las':
-            sampler = SimpleLASSampler(crow=args.inpath, seeds=args.seeds if args.seeds else None, prefix=args.img_dir)
+            sampler = SimpleLASSampler(crow=args.inpath, seeds=args.seeds if args.seeds else None, prefix=args.img_dir,n=args.n_return)
         elif self.mode == 'random':
             sampler = RandomSampler(crow=args.inpath, prefix=args.img_dir)
         elif self.mode == 'uncertainty':
@@ -92,6 +94,7 @@ class TaglessServer:
         self.app.add_url_rule('/', 'view_1', self.index)
         self.app.add_url_rule('/<path:x>', 'view_2', lambda x: send_file('/' + x))
         self.app.add_url_rule('/label', 'view_3', self.label, methods=['POST'])
+        self.app.add_url_rule('/twitter_tag', 'view_4', self.twitter_tag, methods=['POST'])
         
         self.n_las = args.n_las
         self.outpath = args.outpath
@@ -116,7 +119,48 @@ class TaglessServer:
         
         print('self.outstanding', self.outstanding)
         return render_template('index.html', **{'images': images})
-    
+
+    def get_handle(self,nid):
+        resp = requests.get("https://twitter.com/intent/user?user_id=" + nid)
+        handle = resp.text.split("<title>")[1].split(")")[0].split("@")[1]
+        return handle    
+
+    def twitter_tag(self):
+        self.outstanding -= 1
+        print('self.outstanding', self.outstanding)
+        req = request.get_json()
+        filename = req['image_path']
+        # Record annotation (if not already annotated)
+        idx = np.where(self.sampler.labs == filename)[0][0]
+        out = []
+        if not self.sampler.is_labeled(idx):
+            self.sampler.set_label(idx, req['label'])
+
+            # Next image for annotation
+            if self.outstanding < self.max_outstanding:
+                idxs = self.sampler.get_next()
+                for idx in idxs:
+                    if idx not in self.sent:
+                        out.append(self.sampler.labs[idx])
+                        self.sent.add(idx)
+                        self.outstanding += 1
+
+        req.update({
+            'n_hits'    : self.sampler.n_hits(),
+            'n_labeled' : self.sampler.n_labeled(),
+            'mode'      : self.mode,
+        })
+        print(json.dumps(req))
+        sys.stdout.flush()
+
+        if (req['n_hits'] > self.n_las) and (self.mode == 'las'):
+            if req['n_labeled'] > req['n_hits']:
+                self._switch_sampler()
+
+        print('self.outstanding', self.outstanding)
+        out_ids = map(self.get_handle,out)
+        return(jsonify(out_ids))
+
     def label(self):
         self.outstanding -= 1
         print('self.outstanding', self.outstanding)
