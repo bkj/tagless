@@ -19,13 +19,14 @@ import numpy as np
 import pandas as pd
 from glob import glob
 from PIL import Image
+from tempfile import NamedTemporaryFile
 from flask import Flask, Response, request, abort, \
     render_template, send_from_directory, jsonify, send_file
 
-from simple_las_sampler import SimpleLASSampler
-from uncertainty_sampler import UncertaintySampler
-from validation_sampler import ValidationSampler
-from random_sampler import RandomSampler
+from tagless.simple_las_sampler import SimpleLASSampler
+# from tagless.uncertainty_sampler import UncertaintySampler
+# from tagless.validation_sampler import ValidationSampler
+# from tagless.random_sampler import RandomSampler
 
 # --
 # Args
@@ -33,9 +34,9 @@ from random_sampler import RandomSampler
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--outpath', type=str, required=True)
-    parser.add_argument('--inpath', type=str, default='./data/crow')
+    # parser.add_argument('--inpath', type=str, default='./data/crow')
     parser.add_argument('--seeds', type=str, default='')
-    parser.add_argument('--img-dir', type=str, default=os.getcwd())
+    parser.add_argument('--img-dir', type=str, default='/home/bjohnson/projects/moco/')
     
     parser.add_argument('--mode', type=str, default='las')
     parser.add_argument('--n-las', type=int, default=float('inf'))
@@ -46,22 +47,47 @@ def parse_args():
 # --
 # Helpers
 
-def load_image(filename, default_width=300, default_height=300):
-    w, h = Image.open(filename).size
-    aspect = float(w) / h
+def get_patch(inpath, patch_idx):
+    assert patch_idx < 8
     
-    if aspect > float(default_width) / default_height:
-        width = min(w, default_width)
-        height = int(width / aspect)
-    else:
-        height = min(h, default_width)
-        width = int(height * aspect)
+    img = np.load(os.path.join(args.img_dir, inpath))
     
+    row = patch_idx // 4
+    col = patch_idx % 4
+    
+    img = img[:3].transpose(1, 2, 0)
+    img = img[256 * row:256 * (row + 1), 256 * col:256 * (col + 1)]
+    return img
+
+def load_image(row, default_width=300, default_height=300):
+    print(row.img_name)
+    
+    img = get_patch(row.img_name, row.patch_idx)
+    
+    fname = f'/tmp/{row.geohash}_{row.patch_idx}.png'
+    Image.fromarray(img, 'RGB').save(fname)
     return {
-        'src': filename,
-        'width': int(width),
-        'height': int(height),
+        "src"    : fname,
+        "height" : img.shape[0],
+        "width"  : img.shape[1],
     }
+    
+    # w, h = Image.open(filename).size
+    # aspect = float(w) / h
+    
+    # if aspect > float(default_width) / default_height:
+    #     width = min(w, default_width)
+    #     height = int(width / aspect)
+    # else:
+    #     height = min(h, default_width)
+    #     width = int(height * aspect)
+    
+    # return {
+    #     'src': filename,
+    #     'width': int(width),
+    #     'height': int(height),
+    # }
+
 
 # --
 # Server
@@ -72,18 +98,8 @@ class TaglessServer:
         self.app = Flask(__name__)
         
         self.mode = args.mode
-        if self.mode == 'validation':
-            f = h5py.File(args.inpath)
-            preds, labs, y = f['preds'].value, f['labs'].value, f['y'].value
-            sampler = ValidationSampler(preds=preds, labs=labs, y=y, no_permute=args.no_permute)
-        elif self.mode == 'las':
-            sampler = SimpleLASSampler(crow=args.inpath, seeds=args.seeds if args.seeds else None, prefix=args.img_dir)
-        elif self.mode == 'random':
-            sampler = RandomSampler(crow=args.inpath, prefix=args.img_dir)
-        elif self.mode == 'uncertainty':
-            f = h5py.File(args.inpath)
-            X, y, labs = f['X'].value, f['y'].value, f['labs'].value
-            sampler = UncertaintySampler(X=X, y=y, labs=labs)
+        if self.mode == 'las':
+            sampler = SimpleLASSampler(feat_path=None, meta_path=None, seeds=args.seeds if args.seeds else None, prefix=args.img_dir)
         else:
             raise Exception('TaglessServer: unknown mode %s' % args.mode, file=sys.stderr)
         
@@ -103,14 +119,14 @@ class TaglessServer:
         def save():
             self.sampler.save(self.outpath)
         
-        atexit.register(save)
+        # atexit.register(save)
         
     def index(self):
         idxs = self.sampler.get_next()
         images = []
         for idx in idxs:
             if idx not in self.sent:
-                images.append(load_image(self.sampler.labs[idx]))
+                images.append(load_image(self.sampler.meta.iloc[idx]))
                 self.sent.add(idx)
                 self.outstanding += 1
         
@@ -122,22 +138,22 @@ class TaglessServer:
         print('self.outstanding', self.outstanding)
         req = request.get_json()
         
-        # Everything after the domain (as absolute path)
-        filename = '/' + '/'.join(req['image_path'].split('/')[3:]) 
+        print(req)
         
-        # Record annotation (if not already annotated)
-        idx = np.where(self.sampler.labs == filename)[0][0]
+        # Everything after the domain (as absolute path)
+        idx = os.path.basename(req['image_path']).split('.')[0]
+        
         out = []
         if not self.sampler.is_labeled(idx):
             self.sampler.set_label(idx, req['label'])
             
             # Next image for annotation
             if self.outstanding < self.max_outstanding:
-                idxs = self.sampler.get_next()
-                for idx in idxs:
-                    if idx not in self.sent:
-                        out.append(load_image(self.sampler.labs[idx]))
-                        self.sent.add(idx)
+                next_idxs = self.sampler.get_next()
+                for next_idx in next_idxs:
+                    if next_idx not in self.sent:
+                        out.append(load_image(self.sampler.meta.iloc[next_idx]))
+                        self.sent.add(next_idx)
                         self.outstanding += 1
             
         req.update({
@@ -156,6 +172,7 @@ class TaglessServer:
         return(jsonify(out))
     
     def _switch_sampler(self):
+        raise Exception()
         """ switch from LAS to uncertainty sampling """
         
         # Save LAS sampler
