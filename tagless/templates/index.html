@@ -13,7 +13,10 @@
 
         .image {
             float: left;
-            display: block;
+            text-align: center;
+            width: 300px;
+            height: 300px;
+            display: flex;
             margin: 1em;
             background-color: #444;
             box-shadow: 0 0 10px rgba(0,0,0,0.3);
@@ -21,6 +24,8 @@
 
         img {
             display: block;
+            margin: auto;
+            vertical-align: auto;
         }
 
     </style>
@@ -32,53 +37,86 @@
         
         MAX_IMAGES = 250
 
-        function next_image(e, label) {  
+        function next_image(e, query, label) {  
             console.log(e.target.src);
-          $.ajax({
-            type: 'POST',
-            url: 'label',
-            processData: false,
-            contentType: 'application/json',
-            dataType: 'json',
-            data: JSON.stringify({'image_path' : e.target.src, 'label' : label}),
-            success: function(responses, status) {
-                _.map(responses, function(response) {
-                    $('#images').append(
-                        `<a class="image" style="width: ${response.width}px; height: ${response.height}px">` + 
-                            `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
-                        `</a>`
-                    )
-                });
-                
-                // Don't show more than MAX_IMAGES at a time (too many images seemed to choke the app)
-                while($('img').length > MAX_IMAGES) {
-                    $('img')[0].remove();
+            $.ajax({
+                type        : 'POST',
+                url         : 'label',
+                processData : false,
+                contentType : 'application/json',
+                dataType    : 'json',
+                data        : JSON.stringify({'image_path' : e.target.src, 'query' : query, 'label' : label}),
+                success     : function(responses, status) {
+                    _.map(responses, function(response) {
+                        $('#images').append(
+                            `<a class="image">` + 
+                                // `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
+                            `</a>`
+                        )
+                    });
+
+                    // // Don't show more than MAX_IMAGES at a time (too many images seemed to choke the app)
+                    // while($('img').length > MAX_IMAGES) {
+                    //     $('img')[0].remove();
+                    // }
                 }
-            }
-          });
+            });
         }
+        
+        function do_search(query) {  
+            $.ajax({
+                type        : 'POST',
+                url         : 'search',
+                processData : false,
+                contentType : 'application/json',
+                dataType    : 'json',
+                data        : JSON.stringify({'query' : query}),
+                success     : function(responses, status) {
+                    _.map(responses, function(response) {
+                        $('#images').append(
+                            `<a class="image" style="width: 300px; height: 300px; image-align:center;">` + 
+                                `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
+                            `</a>`
+                        )
+                    });
+                }
+            });
+        }
+        
+        function do_clear() {
+            while($('.image').length > 0)
+                $('.image')[0].remove();
+        }
+        
 
         $(document).ready(function() {
             $('img').unveil();
+            
             $("body").on("click", ".image", function(e){
                 $(this).css('background-color', 'green').children().css('opacity', '0.5');
-                next_image(e, true) 
+                var query = document.getElementById('search_bar').value;
+                next_image(e, query, true);
             });
+            
             $("body").on("contextmenu", ".image", function(e){
                 $(this).css('background-color', 'red').children().css('opacity', '0.5');
-                next_image(e, false) 
+                var query = document.getElementById('search_bar').value;
+                next_image(e, query, false);
+            });
+            
+            $("#search_bar").keypress(function(e) {
+                if(e.keyCode == 13) {
+                    do_clear();
+                    
+                    var query = document.getElementById('search_bar').value
+                    do_search(query);
+                }
             });
         });
-        
     </script>
 </head>
 
 <body oncontextmenu="return false;">
-    <div id="images">
-        {% for image in images %}
-            <a class="image" style="width: {{ image.width }}px; height: {{ image.height }}px">
-                <img src="{{ image.src }}" width="{{ image.width }}" height="{{ image.height }}" />
-            </a>
-        {% endfor %}
-    </div>
+    <input type="text" id="search_bar" placeholder="Search..." style="width:100%; height:32px; text-align:center"">
+    <div id="images"> </div>
 </body>

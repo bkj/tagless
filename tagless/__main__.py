@@ -51,11 +51,11 @@ def load_image(filename, default_width=300, default_height=300):
     aspect = float(w) / h
     
     if aspect > float(default_width) / default_height:
-        width = min(w, default_width)
+        width  = min(w, default_width)
         height = int(width / aspect)
     else:
         height = min(h, default_width)
-        width = int(height * aspect)
+        width  = int(height * aspect)
     
     return {
         'src': filename,
