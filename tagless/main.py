@@ -57,11 +57,17 @@ class CLIPServer:
         self.fnames = np.load(os.path.join(inpath, 'out', 'fnames.npy'))
         self.model, self.preprocess = clip.load('ViT-L/14@336px', device='cpu')
         
+        self.fnames2idx = dict(zip(
+            [os.path.basename(f) for f in self.fnames], 
+            range(len(self.fnames))
+        ))
+        
         self.feats = bcolz.open(os.path.join(inpath, 'out/feats.bcolz'))[:]
         self.feats = self.feats / np.sqrt((self.feats ** 2).sum(axis=-1, keepdims=True))
         
         self.rank   = None
         
+        self.idx_sent    = []
         self.labels  = []
         self.fout    = open('out.jl', 'w')
     
@@ -90,6 +96,7 @@ class CLIPServer:
         self.rank = np.argsort(-(self.feats @ qt_enc))
         
         idxs, self.rank = self.rank[:k], self.rank[k:]
+        self.idx_sent += list(idxs)
         return self._get_imgs(idxs)
     
     def label(self):
@@ -101,7 +108,34 @@ class CLIPServer:
         print(json.dumps(req), file=self.fout)
         self.fout.flush()
         
+        self.labels.append(req)
+        if (len(self.labels) + 1) % 10 == 0:
+            print('------ retraining ------')
+            
+            import pandas as pd
+            from sklearn.svm import LinearSVC
+            
+            df = pd.DataFrame(self.labels)
+            df = df.drop_duplicates('image_path', keep='last')
+            
+            idxs = df.image_path.apply(lambda x: self.fnames2idx[x]).values
+            X = self.feats[idxs]
+            y = df.label.values
+            
+            print(y)
+            print(self.idx_sent)
+            
+            if (y == True).any() and (y == False).any():
+                
+                clf  = LinearSVC().fit(X, y)
+                rank = np.argsort(-clf.decision_function(self.feats))
+                rank = rank[~np.isin(rank, self.idx_sent)]
+                self.rank = rank
+        
+        # print(self.rank[:5])
+        
         idxs, self.rank = self.rank[:1], self.rank[1:]
+        self.idx_sent += list(idxs)
         return self._get_imgs(idxs)
     
     def index(self):
