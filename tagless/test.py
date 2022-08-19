@@ -42,6 +42,8 @@ def load_image(filename, default_width=300, default_height=300):
 # --
 # Server
 
+inpath = '/home/ubuntu/projects/usgs/data/'
+
 class CLIPServer:
     
     def __init__(self):
@@ -52,20 +54,26 @@ class CLIPServer:
         self.app.add_url_rule('/label',    'view_3', self.label, methods=['POST'])
         self.app.add_url_rule('/search',   'view_4', self.search, methods=['POST'])
         
-        self.fnames = np.load(os.path.join('out', 'fnames.npy'))
+        self.fnames = np.load(os.path.join(inpath, 'out', 'fnames.npy'))
         self.model, self.preprocess = clip.load('ViT-L/14@336px', device='cpu')
         
-        self.feats = bcolz.open('out/feats.bcolz')[:]
+        self.feats = bcolz.open(os.path.join(inpath, 'out/feats.bcolz'))[:]
         self.feats = self.feats / np.sqrt((self.feats ** 2).sum(axis=-1, keepdims=True))
         
         self.rank   = None
         
-        # self.labels  = []
+        self.labels  = []
         self.fout    = open('out.jl', 'w')
     
     def _get_imgs(self, idxs):
         fnames = self.fnames[idxs]
-        fnames = [os.path.join('data', os.path.basename(fname)) for fname in fnames]
+        fnames = [
+            os.path.join(
+                'data',
+                '_'.join(os.path.basename(fname).split('_')[:2]), 
+                os.path.basename(fname)
+            ) for fname in fnames
+        ]
         images = [load_image(fname) for fname in fnames]
         return jsonify(images)
     
