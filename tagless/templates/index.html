@@ -10,22 +10,36 @@
             margin: 0;
             background-color: #333;
         }
-
+        
+        #search_bar {
+            width:100%;
+            height:32px;
+            text-align:center;
+            font-family: Courier, monospace;
+        }
+        
         .image {
             float: left;
             text-align: center;
             width: 300px;
-            height: 300px;
+            height: 320px;
             display: flex;
+            flex-direction: column;
             margin: 1em;
-            background-color: #444;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            /* background-color: rgba(68, 68, 68, 0.5); */
+            /* box-shadow: 0 0 30px rgba(0,0,0,0.); */
         }
 
         img {
             display: block;
             margin: auto;
             vertical-align: auto;
+        }
+        
+        .sim {
+            display: block;
+            color: white;
+            font-family: Courier, monospace;
         }
 
     </style>
@@ -37,6 +51,11 @@
         
         MAX_IMAGES = 250
 
+        
+        function round(x) {
+            return Math.round(x * 1000) / 1000;
+        }
+        
         function next_image(e, query, label) {  
             console.log(e.target.src);
             $.ajax({
@@ -50,7 +69,8 @@
                     _.map(responses, function(response) {
                         $('#images').append(
                             `<a class="image">` + 
-                                // `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
+                                `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
+                                `<figcaption class="sim">sim=${round(response.sim)}</figcaption>` + 
                             `</a>`
                         )
                     });
@@ -74,8 +94,9 @@
                 success     : function(responses, status) {
                     _.map(responses, function(response) {
                         $('#images').append(
-                            `<a class="image" style="width: 300px; height: 300px; image-align:center;">` + 
+                            `<a class="image">` + 
                                 `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
+                                `<figcaption class="sim">sim=${round(response.sim)}</figcaption>` + 
                             `</a>`
                         )
                     });
@@ -92,14 +113,14 @@
         $(document).ready(function() {
             $('img').unveil();
             
-            $("body").on("click", ".image", function(e){
-                $(this).css('background-color', 'green').children().css('opacity', '0.5');
+            $("body").on("click", "img", function(e){
+                $(this).parent().css('background-color', 'rgba(0,255,0,0.5)');
                 var query = document.getElementById('search_bar').value;
                 next_image(e, query, true);
             });
             
-            $("body").on("contextmenu", ".image", function(e){
-                $(this).css('background-color', 'red').children().css('opacity', '0.5');
+            $("body").on("contextmenu", "img", function(e){
+                $(this).parent().css('background-color', 'rgba(255,0,0,0.5)');
                 var query = document.getElementById('search_bar').value;
                 next_image(e, query, false);
             });
@@ -117,6 +138,6 @@
 </head>
 
 <body oncontextmenu="return false;">
-    <input type="text" id="search_bar" placeholder="Search..." style="width:100%; height:32px; text-align:center"">
+    <input type="text" id="search_bar" placeholder="Search...">
     <div id="images"> </div>
 </body>

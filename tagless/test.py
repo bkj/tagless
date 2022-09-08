@@ -61,12 +61,15 @@ class CLIPServer:
         self.rank   = None
         
         # self.labels  = []
-        self.fout    = open('out.jl', 'w')
+        self.fout    = open('out2.jl', 'w')
     
-    def _get_imgs(self, idxs):
+    def _get_imgs(self, idxs, sims):
         fnames = self.fnames[idxs]
         fnames = [os.path.join('data', os.path.basename(fname)) for fname in fnames]
         images = [load_image(fname) for fname in fnames]
+        for image, sim in zip(images, sims):
+            image['sim'] = sim
+        
         return jsonify(images)
     
     def search(self, k=64):
@@ -79,10 +82,14 @@ class CLIPServer:
             qt_enc /= qt_enc.norm()
             qt_enc = qt_enc.numpy()
         
-        self.rank = np.argsort(-(self.feats @ qt_enc))
+        sims = self.feats @ qt_enc
+        self.idxs = np.argsort(-sims)
+        self.sims = sims[self.idxs]
         
-        idxs, self.rank = self.rank[:k], self.rank[k:]
-        return self._get_imgs(idxs)
+        curr_idxs, self.idxs = self.idxs[:k], self.idxs[k:]
+        curr_sims, self.sims = self.sims[:k], self.sims[k:]
+        
+        return self._get_imgs(curr_idxs, curr_sims)
     
     def label(self):
         req = request.get_json()
@@ -93,8 +100,10 @@ class CLIPServer:
         print(json.dumps(req), file=self.fout)
         self.fout.flush()
         
-        idxs, self.rank = self.rank[:1], self.rank[1:]
-        return self._get_imgs(idxs)
+        curr_idxs, self.idxs = self.idxs[:1], self.idxs[1:]
+        curr_sims, self.sims = self.sims[:1], self.sims[1:]
+        
+        return self._get_imgs(curr_idxs, curr_sims)
     
     def index(self):
         return render_template('index.html')
