@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
 """
-    server.py
-    
-    Server for simple_las activate labeling of images
+    __main__.py
 """
 
 import os
@@ -14,10 +12,12 @@ import bcolz
 import numpy as np
 
 from PIL import Image
-from flask import Flask, Response, request, abort, \
-    render_template, send_from_directory, jsonify, send_file
+from flask import Flask, request, render_template, jsonify, send_file
 
 import clip
+
+FNAME_PATH = 'out/fnames'
+FEAT_PATH  = 'out/feats.bcolz'
 
 # --
 # Helpers
@@ -52,10 +52,10 @@ class CLIPServer:
         self.app.add_url_rule('/label',    'view_3', self.label, methods=['POST'])
         self.app.add_url_rule('/search',   'view_4', self.search, methods=['POST'])
         
-        self.fnames = np.load(os.path.join('out', 'fnames.npy'))
+        self.fnames = np.load(FNAME_PATH)
         self.model, self.preprocess = clip.load('ViT-L/14@336px', device='cpu')
         
-        self.feats = bcolz.open('out/feats.bcolz')[:]
+        self.feats = bcolz.open(FEAT_PATH)[:]
         self.feats = self.feats / np.sqrt((self.feats ** 2).sum(axis=-1, keepdims=True))
         
         self.rank   = None
