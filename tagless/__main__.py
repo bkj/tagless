@@ -6,48 +6,24 @@
     Server for simple_las activate labeling of images
 """
 
-from __future__ import print_function
-
 import os
-import re
-import sys
-import h5py
+import arrow
 import json
-import atexit
-import argparse
+import torch
+import bcolz
 import numpy as np
-import pandas as pd
-from glob import glob
+
 from PIL import Image
 from flask import Flask, Response, request, abort, \
     render_template, send_from_directory, jsonify, send_file
 
-from simple_las_sampler import SimpleLASSampler
-from uncertainty_sampler import UncertaintySampler
-from validation_sampler import ValidationSampler
-from random_sampler import RandomSampler
-
-# --
-# Args
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--outpath', type=str, required=True)
-    parser.add_argument('--inpath', type=str, default='./data/crow')
-    parser.add_argument('--seeds', type=str, default='')
-    parser.add_argument('--img-dir', type=str, default=os.getcwd())
-    
-    parser.add_argument('--mode', type=str, default='las')
-    parser.add_argument('--n-las', type=int, default=float('inf'))
-    parser.add_argument('--no-permute', action="store_true")
-    
-    return parser.parse_args()
+import clip
 
 # --
 # Helpers
 
 def load_image(filename, default_width=300, default_height=300):
-    w, h = Image.open(filename).size
+    w, h   = Image.open(filename).size
     aspect = float(w) / h
     
     if aspect > float(default_width) / default_height:
@@ -58,116 +34,82 @@ def load_image(filename, default_width=300, default_height=300):
         width  = int(height * aspect)
     
     return {
-        'src': filename,
-        'width': int(width),
-        'height': int(height),
+        'src'    : filename,
+        'width'  : int(width),
+        'height' : int(height),
     }
 
 # --
 # Server
 
-class TaglessServer:
+class CLIPServer:
     
-    def __init__(self, args, max_outstanding=64):
+    def __init__(self):
         self.app = Flask(__name__)
         
-        self.mode = args.mode
-        if self.mode == 'validation':
-            f = h5py.File(args.inpath)
-            preds, labs, y = f['preds'].value, f['labs'].value, f['y'].value
-            sampler = ValidationSampler(preds=preds, labs=labs, y=y, no_permute=args.no_permute)
-        elif self.mode == 'las':
-            sampler = SimpleLASSampler(crow=args.inpath, seeds=args.seeds if args.seeds else None, prefix=args.img_dir)
-        elif self.mode == 'random':
-            sampler = RandomSampler(crow=args.inpath, prefix=args.img_dir)
-        elif self.mode == 'uncertainty':
-            f = h5py.File(args.inpath)
-            X, y, labs = f['X'].value, f['y'].value, f['labs'].value
-            sampler = UncertaintySampler(X=X, y=y, labs=labs)
-        else:
-            raise Exception('TaglessServer: unknown mode %s' % args.mode, file=sys.stderr)
+        self.app.add_url_rule('/',         'view_1', self.index)
+        self.app.add_url_rule('/<path:x>', 'view_2', lambda x: send_file('../' + x))
+        self.app.add_url_rule('/label',    'view_3', self.label, methods=['POST'])
+        self.app.add_url_rule('/search',   'view_4', self.search, methods=['POST'])
         
-        self.sampler = sampler
+        self.fnames = np.load(os.path.join('out', 'fnames.npy'))
+        self.model, self.preprocess = clip.load('ViT-L/14@336px', device='cpu')
         
-        self.app.add_url_rule('/', 'view_1', self.index)
-        self.app.add_url_rule('/<path:x>', 'view_2', lambda x: send_file('/' + x))
-        self.app.add_url_rule('/label', 'view_3', self.label, methods=['POST'])
+        self.feats = bcolz.open('out/feats.bcolz')[:]
+        self.feats = self.feats / np.sqrt((self.feats ** 2).sum(axis=-1, keepdims=True))
         
-        self.n_las = args.n_las
-        self.outpath = args.outpath
-        self.sent = set([])
+        self.rank   = None
         
-        self.outstanding = 0
-        self.max_outstanding = max_outstanding
+        # self.labels  = []
+        self.fout    = open('out2.jl', 'w')
+    
+    def _get_imgs(self, idxs, sims):
+        fnames = self.fnames[idxs]
+        fnames = [os.path.join('data', os.path.basename(fname)) for fname in fnames]
+        images = [load_image(fname) for fname in fnames]
+        for image, sim in zip(images, sims):
+            image['sim'] = sim
         
-        def save():
-            self.sampler.save(self.outpath)
+        return jsonify(images)
+    
+    def search(self, k=64):
+        req   = request.get_json()
+        query = req['query']
         
-        atexit.register(save)
+        with torch.no_grad():
+            text   = clip.tokenize([query])
+            qt_enc = self.model.encode_text(text).squeeze()
+            qt_enc /= qt_enc.norm()
+            qt_enc = qt_enc.numpy()
         
-    def index(self):
-        idxs = self.sampler.get_next()
-        images = []
-        for idx in idxs:
-            if idx not in self.sent:
-                images.append(load_image(self.sampler.labs[idx]))
-                self.sent.add(idx)
-                self.outstanding += 1
+        sims = self.feats @ qt_enc
+        self.idxs = np.argsort(-sims)
+        self.sims = sims[self.idxs]
         
-        print('self.outstanding', self.outstanding)
-        return render_template('index.html', **{'images': images})
+        curr_idxs, self.idxs = self.idxs[:k], self.idxs[k:]
+        curr_sims, self.sims = self.sims[:k], self.sims[k:]
+        
+        return self._get_imgs(curr_idxs, curr_sims)
     
     def label(self):
-        self.outstanding -= 1
-        print('self.outstanding', self.outstanding)
         req = request.get_json()
+        req['image_path'] = os.path.basename(req['image_path'])
+        req['timestamp']  = arrow.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # Everything after the domain (as absolute path)
-        filename = '/' + '/'.join(req['image_path'].split('/')[3:]) 
-        
-        # Record annotation (if not already annotated)
-        idx = np.where(self.sampler.labs == filename)[0][0]
-        out = []
-        if not self.sampler.is_labeled(idx):
-            self.sampler.set_label(idx, req['label'])
-            
-            # Next image for annotation
-            if self.outstanding < self.max_outstanding:
-                idxs = self.sampler.get_next()
-                for idx in idxs:
-                    if idx not in self.sent:
-                        out.append(load_image(self.sampler.labs[idx]))
-                        self.sent.add(idx)
-                        self.outstanding += 1
-            
-        req.update({
-            'n_hits'    : self.sampler.n_hits(),
-            'n_labeled' : self.sampler.n_labeled(),
-            'mode'      : self.mode,
-        })
         print(json.dumps(req))
-        sys.stdout.flush()
+        print(json.dumps(req), file=self.fout)
+        self.fout.flush()
         
-        if (req['n_hits'] > self.n_las) and (self.mode == 'las'):
-            if req['n_labeled'] > req['n_hits']:
-                self._switch_sampler()
+        curr_idxs, self.idxs = self.idxs[:1], self.idxs[1:]
+        curr_sims, self.sims = self.sims[:1], self.sims[1:]
         
-        print('self.outstanding', self.outstanding)
-        return(jsonify(out))
+        return self._get_imgs(curr_idxs, curr_sims)
     
-    def _switch_sampler(self):
-        """ switch from LAS to uncertainty sampling """
-        
-        # Save LAS sampler
-        self.sampler.save(self.outpath)
-        
-        print('TaglessServer: las -> uncertainty | start', file=sys.stderr)
-        X, y = self.sampler.get_data()
-        self.sampler = UncertaintySampler(X, y, self.sampler.labs)
-        self.mode = 'uncertainty'
-        print('TaglessServer: las -> uncertainty | done', file=sys.stderr)
+    def index(self):
+        return render_template('index.html')
+
+# --
 
 if __name__ == "__main__":
-    args = parse_args()
-    server = TaglessServer(args)
+    server = CLIPServer()
     server.app.run(debug=True, host='0.0.0.0', use_reloader=False)
