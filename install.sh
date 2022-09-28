@@ -10,6 +10,7 @@ conda activate tagless_env
 
 conda install -y -c pytorch pytorch torchvision cudatoolkit=11.3
 
+pip install pandas
 pip install bcolz-zipline
 pip install ftfy
 pip install regex
@@ -20,5 +21,6 @@ pip install arrow
 pip install -e .
 
 # --
+# Run
 
-python -m tagless.test
+python -m tagless
