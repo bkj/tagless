@@ -37,7 +37,7 @@ class InferenceServer:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--clf_path',   type=str, default='/feats/test/model.joblib')
+    parser.add_argument('--clf_path',   type=str, required=True)
     args = parser.parse_args()
     return args
 

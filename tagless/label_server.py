@@ -44,21 +44,24 @@ def load_image(filename, default_width=300, default_height=300):
 
 class CLIPServer:
     
-    def __init__(self, imgs, feats, fnames, outpath):
-        self.app = Flask(__name__)
+    def __init__(self, indir, model_str='ViT-L/14@336px'):
         
+        self.indir = indir
+        fnames     = os.path.join(indir, 'fnames.npy')
+        feats      = os.path.join(indir, 'feats.npy')
+        outpath    = os.path.join(indir, 'out.jl')
+        
+        self.app = Flask(__name__)
         self.app.add_url_rule('/',         'view_1', self.index)
         self.app.add_url_rule('/<path:x>', 'view_2', lambda x: send_file('../' + x))
         self.app.add_url_rule('/label',    'view_3', self.label, methods=['POST'])
         self.app.add_url_rule('/search',   'view_4', self.search, methods=['POST'])
         
         self.fnames = np.load(fnames)
-        self.model, self.preprocess = clip.load('ViT-L/14@336px', device='cpu')
+        self.model, self.preprocess = clip.load(model_str, device='cpu')
         
         self.feats = np.load(feats)
         self.feats = self.feats / np.sqrt((self.feats ** 2).sum(axis=-1, keepdims=True))
-        
-        self.rank   = None
         
         self.labels  = []
         self.fout    = open(outpath, 'w')
@@ -75,6 +78,8 @@ class CLIPServer:
     def search(self, k=16):
         req   = request.get_json()
         query = req['query']
+        
+        self.query = query
         
         with torch.no_grad():
             text   = clip.tokenize([query])
@@ -130,7 +135,7 @@ class CLIPServer:
                 curr_idxs, self.idxs = self.idxs[:1], self.idxs[1:]
                 curr_sims, self.sims = self.sims[:1], self.sims[1:]
                 
-                dump(clf, '/feats/test/model.joblib')
+                dump(clf, os.path.join(self.indir, f"{self.query.replace(' ', '_')}.joblib"))
 
         # <<
         
@@ -144,10 +149,7 @@ class CLIPServer:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--imgs',    type=str, default='/imgs')
-    parser.add_argument('--feats',   type=str, default='/feats/test/feats.npy')
-    parser.add_argument('--fnames',  type=str, default='/feats/test/fnames.npy')
-    parser.add_argument('--outpath', type=str, default='/feats/test/out.jl')
+    parser.add_argument('--indir',   type=str, default='/feats/test/')
     args = parser.parse_args()
     return args
 
@@ -157,11 +159,10 @@ if __name__ == "__main__":
     
     # <<
     # Fix absolute path issue
-    assert args.imgs == '/imgs'
     _ = os.symlink('/imgs', 'imgs')
     # >>
     
     print('CLIPServer: init')
-    server = CLIPServer(args.imgs, args.feats, args.fnames, args.outpath)
+    server = CLIPServer(args.indir)
     print('... starting server ...')
     server.app.run(debug=True, host='0.0.0.0', use_reloader=False)
