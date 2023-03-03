@@ -79,7 +79,8 @@ class CLIPServer:
         req   = request.get_json()
         query = req['query']
         
-        self.query = query
+        self.query  = query
+        self.labels = []
         
         with torch.no_grad():
             text   = clip.tokenize([query])
