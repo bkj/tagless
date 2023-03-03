@@ -58,18 +58,24 @@
         
         function next_image(e, query, label) {  
             console.log(e.target.src);
+            data = {
+                'image_path' : e.target.src, 
+                'idx'        : $(e.target).attr('data-idx'), 
+                'query'      : query, 
+                'label'      : label
+            }
             $.ajax({
                 type        : 'POST',
                 url         : 'label',
                 processData : false,
                 contentType : 'application/json',
                 dataType    : 'json',
-                data        : JSON.stringify({'image_path' : e.target.src, 'query' : query, 'label' : label}),
+                data        : JSON.stringify(data),
                 success     : function(responses, status) {
                     _.map(responses, function(response) {
                         $('#images').append(
                             `<a class="image">` + 
-                                `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
+                                `<img src="${response.src}" width="${response.width}" height="${response.height}" data-idx="${response.idx}"/>` +
                                 `<figcaption class="sim">sim=${round(response.sim)}</figcaption>` + 
                             `</a>`
                         )
@@ -95,7 +101,7 @@
                     _.map(responses, function(response) {
                         $('#images').append(
                             `<a class="image">` + 
-                                `<img src="${response.src}" width="${response.width}" height="${response.height}"/>` +
+                                `<img src="${response.src}" width="${response.width}" height="${response.height}" data-idx="${response.idx}"/>` +
                                 `<figcaption class="sim">sim=${round(response.sim)}</figcaption>` + 
                             `</a>`
                         )

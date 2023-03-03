@@ -35,6 +35,9 @@ ADD ./ /tagless
 WORKDIR /tagless
 RUN pip install -e .
 
+
+RUN pip install scikit-learn
+
 # --
 # run
 
