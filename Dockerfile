@@ -18,6 +18,7 @@ RUN pip install arrow
 RUN pip install rich
 RUN pip install flask
 RUN pip install git+https://github.com/openai/CLIP.git
+RUN pip install scikit-learn
 
 # --
 # model dependencies
@@ -34,9 +35,6 @@ RUN mkdir /tagless
 ADD ./ /tagless
 WORKDIR /tagless
 RUN pip install -e .
-
-
-RUN pip install scikit-learn
 
 # --
 # run

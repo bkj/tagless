@@ -12,6 +12,7 @@ import argparse
 import numpy as np
 from rich import print
 from sklearn.svm import LinearSVC
+from joblib import dump
 
 from PIL import Image
 from flask import Flask, request, render_template, jsonify, send_file
@@ -128,6 +129,8 @@ class CLIPServer:
                 
                 curr_idxs, self.idxs = self.idxs[:1], self.idxs[1:]
                 curr_sims, self.sims = self.sims[:1], self.sims[1:]
+                
+                dump(clf, '/feats/test/model.joblib')
 
         # <<
         
