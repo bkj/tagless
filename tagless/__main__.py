@@ -5,19 +5,17 @@
 """
 
 import os
-import arrow
 import json
 import torch
-import bcolz
+import arrow
+import argparse
 import numpy as np
+from rich import print
 
 from PIL import Image
 from flask import Flask, request, render_template, jsonify, send_file
 
 import clip
-
-FNAME_PATH = 'out/fnames'
-FEAT_PATH  = 'out/feats.bcolz'
 
 # --
 # Helpers
@@ -44,7 +42,7 @@ def load_image(filename, default_width=300, default_height=300):
 
 class CLIPServer:
     
-    def __init__(self):
+    def __init__(self, imgs, feats, fnames):
         self.app = Flask(__name__)
         
         self.app.add_url_rule('/',         'view_1', self.index)
@@ -52,23 +50,22 @@ class CLIPServer:
         self.app.add_url_rule('/label',    'view_3', self.label, methods=['POST'])
         self.app.add_url_rule('/search',   'view_4', self.search, methods=['POST'])
         
-        self.fnames = np.load(FNAME_PATH)
+        self.fnames = np.load(fnames)
         self.model, self.preprocess = clip.load('ViT-L/14@336px', device='cpu')
         
-        self.feats = bcolz.open(FEAT_PATH)[:]
+        self.feats = np.load(feats)
         self.feats = self.feats / np.sqrt((self.feats ** 2).sum(axis=-1, keepdims=True))
         
         self.rank   = None
         
         # self.labels  = []
-        self.fout    = open('out2.jl', 'w')
+        self.fout    = open('/feats/test/out.jl', 'w')
     
     def _get_imgs(self, idxs, sims):
         fnames = self.fnames[idxs]
-        fnames = [os.path.join('data', os.path.basename(fname)) for fname in fnames]
         images = [load_image(fname) for fname in fnames]
         for image, sim in zip(images, sims):
-            image['sim'] = sim
+            image['sim'] = float(sim)
         
         return jsonify(images)
     
@@ -92,12 +89,12 @@ class CLIPServer:
         return self._get_imgs(curr_idxs, curr_sims)
     
     def label(self):
-        req = request.get_json()
-        req['image_path'] = os.path.basename(req['image_path'])
+        req               = request.get_json()
+        req['image_path'] = req['image_path']
         req['timestamp']  = arrow.now().strftime('%Y-%m-%d %H:%M:%S')
         
         print(json.dumps(req))
-        print(json.dumps(req), file=self.fout)
+        self.fout.write(json.dumps(req) + '\n')
         self.fout.flush()
         
         curr_idxs, self.idxs = self.idxs[:1], self.idxs[1:]
@@ -109,7 +106,27 @@ class CLIPServer:
         return render_template('index.html')
 
 # --
+# Run
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--imgs',   type=str, default='/imgs')
+    parser.add_argument('--feats',  type=str, default='/feats/test/feats.npy')
+    parser.add_argument('--fnames', type=str, default='/feats/test/fnames.npy')
+    args = parser.parse_args()
+    return args
+
 
 if __name__ == "__main__":
-    server = CLIPServer()
+    args   = parse_args()
+    
+    # <<
+    # Fix absolute path issue
+    assert args.imgs == '/imgs'
+    _ = os.symlink('/imgs', 'imgs')
+    # >>
+    
+    print('CLIPServer: init')
+    server = CLIPServer(args.imgs, args.feats, args.fnames)
+    print('... starting server ...')
     server.app.run(debug=True, host='0.0.0.0', use_reloader=False)
